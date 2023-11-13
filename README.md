@@ -18,4 +18,4 @@ glm
 
 ## build 
     mkdir build
-    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -B ./build/ -S ./ -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -G ninja
+    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -B ./build/ -S ./ -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -G Ninja
