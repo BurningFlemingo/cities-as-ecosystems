@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 
-set(PROJECT_NAME CitiesAsEcosystems)
-project(PROJECT_NAME)
+project(CitiesAsEcosystems)
 
 find_package(SDL2 REQUIRED)
 find_package(glm REQUIRED)
@@ -15,6 +14,6 @@ set(
 	${CMAKE_SOURCE_DIR}/src/Main.cpp
 	)
 
-add_executable(PROJECT_NAME ${SRC_FILES})
+add_executable(CitiesAsEcosystems ${SRC_FILES})
 
-target_link_libraries(PROJECT_NAME PUBLIC SDL2::SDL2 SDL2::SDL2main glm::glm Vulkan::Vulkan)
+target_link_libraries(CitiesAsEcosystems PUBLIC SDL2::SDL2 SDL2::SDL2main Vulkan::Vulkan)

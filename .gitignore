@@ -1,0 +1,12 @@
+*
+!.gitignore
+!src
+!src/**.cpp
+!src/**.h
+!vcpkg
+!vcpkg/*
+!.gitmodules
+!CMakeLists.txt
+!README.md
+!scripts
+!scripts/**

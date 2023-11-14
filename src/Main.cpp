@@ -49,21 +49,6 @@ int main(int argc, char* argv[]) {
 		std::vector<VkExtensionProperties> avaliableExtensions(avaliableExtensionCount);
 		vkEnumerateInstanceExtensionProperties(nullptr, &avaliableExtensionCount, avaliableExtensions.data());
 
-		std::vector<const char*> enabledExtensions;
-		for (const auto extension : avaliableExtensions) {
-			auto itt{
-				std::find_if(
-						requiredExtensions.begin(),
-						requiredExtensions.end(),
-						[&](const auto& requiredExtension) { return strcmp(requiredExtension, extension.extensionName) == 0; }
-						)
-			};
-
-			if (itt != avaliableLayers.end()) {
-				enabledLayers.emplace_back(validationLayer);
-			}
-		}
-
 		std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
 
 		uint32_t layerCount{};
@@ -124,4 +109,6 @@ int main(int argc, char* argv[]) {
 	vkDestroyInstance(instance, nullptr);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
+
+	return 0;
 }
