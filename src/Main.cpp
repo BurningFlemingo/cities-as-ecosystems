@@ -13,8 +13,20 @@
 constexpr uint32_t WINDOW_HEIGHT{1080 / 2};
 constexpr uint32_t WINDOW_WIDTH{1920 / 2};
 
+struct SwapchainSupportDetails {
+	VkSurfaceCapabilitiesKHR surfaceCapabilities{};
+	std::vector<VkSurfaceFormatKHR> surfaceFormats{};
+	std::vector<VkPresentModeKHR> presentModes{};
+};
+
 std::vector<const char*> getLayers();
 std::vector<const char*> getExtensions(SDL_Window* window);
+std::vector<const char*> getDeviceExtensions(VkPhysicalDevice pDevice, const std::vector<const char*>& requiredExtensions);
+SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfaceKHR surface);
+
+VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats);
+VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
+void chooseSwapchainExtent(VkSurfaceCapabilitiesKHR capabilities);
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -86,7 +98,9 @@ int main(int argc, char* argv[]) {
 	VkPhysicalDevice physicalDevice{};
 	std::optional<uint32_t> graphicsQueueFamilyIndex{};
 	std::optional<uint32_t> presentQueueFamilyIndex{};
+	std::vector<const char*> deviceExtensions{};
 	{
+		std::vector<const char*> requiredDeviceExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 		uint32_t nPhysicalDevices{};
 		vkEnumeratePhysicalDevices(instance, &nPhysicalDevices, nullptr);
@@ -138,10 +152,21 @@ int main(int argc, char* argv[]) {
 
 			if (graphicsFamilyIndex.has_value() && presentFamilyIndex.has_value()) {
 
-				if (currentRating > highestRating) {
-					graphicsQueueFamilyIndex = graphicsFamilyIndex.value();
-					presentQueueFamilyIndex = presentFamilyIndex.value();
-					physicalDevice = pDevice;
+				std::vector<const char*> tempDeviceExtensions = getDeviceExtensions(pDevice, requiredDeviceExtensions);
+				if (currentRating > highestRating && !tempDeviceExtensions.empty()) {
+					SwapchainSupportDetails swapchainSupportDetails{querySwapchainSupport(pDevice, surface)};
+					bool swapchainSupported{
+						!swapchainSupportDetails.surfaceFormats.empty() &&
+						!swapchainSupportDetails.presentModes.empty()
+					};
+					if (swapchainSupported) {
+						chooseSwapchainSurfaceFormat(swapchainSupportDetails.surfaceFormats);
+						graphicsQueueFamilyIndex = graphicsFamilyIndex.value();
+						presentQueueFamilyIndex = presentFamilyIndex.value();
+						deviceExtensions = tempDeviceExtensions;
+						physicalDevice = pDevice;
+					}
+
 				}
 			}
 
@@ -176,6 +201,8 @@ int main(int argc, char* argv[]) {
 		deviceCreateInfo.pQueueCreateInfos = queuesToCreate;
 		deviceCreateInfo.queueCreateInfoCount = 2;
 		deviceCreateInfo.pEnabledFeatures = &pDeviceFeats;
+		deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
+		deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
 		vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
 	}
@@ -229,7 +256,7 @@ std::vector<const char*> getExtensions(SDL_Window* window) {
 		extensions.emplace_back(extension);
 	}
 	extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-	extensions.emplace_back("VK_KHR_surface");
+	extensions.emplace_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
 	uint32_t avaliableExtensionCount{};
 	vkEnumerateInstanceExtensionProperties(nullptr, &avaliableExtensionCount, nullptr);
@@ -242,7 +269,7 @@ std::vector<const char*> getExtensions(SDL_Window* window) {
 			std::find_if(
 					avaliableExtensions.begin(),
 					avaliableExtensions.end(),
-					[&](const auto& avaliableExtension) { return strcmp(avaliableExtension.extensionName, extension) == 0; }
+					[&](const auto& avaliableExtension) {return strcmp(avaliableExtension.extensionName, extension) == 0; }
 					)
 		};
 
@@ -255,6 +282,36 @@ std::vector<const char*> getExtensions(SDL_Window* window) {
 	}
 
 	return enabledExtensions;
+}
+
+ std::vector<const char*> getDeviceExtensions(VkPhysicalDevice pDevice, const std::vector<const char*>& requiredExtensions) {
+	uint32_t avaliableExtensionsCount{};
+	vkEnumerateDeviceExtensionProperties(pDevice, nullptr, &avaliableExtensionsCount, nullptr);
+
+	std::vector<VkExtensionProperties> avaliableExtensions(avaliableExtensionsCount);
+	vkEnumerateDeviceExtensionProperties(pDevice, nullptr, &avaliableExtensionsCount, avaliableExtensions.data());
+
+	std::vector<const char*> extensions{};
+	for (const auto& requiredExtension : requiredExtensions) {
+		auto itt{
+			std::find_if(
+					avaliableExtensions.begin(),
+					avaliableExtensions.end(),
+					[&](const auto& avaliableExtension) {
+						return strcmp(avaliableExtension.extensionName, requiredExtension) == 0;
+					}
+			)
+		};
+
+		if (itt != avaliableExtensions.end()) {
+			extensions.emplace_back(requiredExtension);
+		} else {
+			std::cout << requiredExtension << " could not be found" << std::endl;
+			return {};
+		}
+	}
+
+	return extensions;
 }
 
 std::vector<const char*> getLayers() {
@@ -287,6 +344,69 @@ std::vector<const char*> getLayers() {
 	return validationLayers;
 }
 
+
+SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfaceKHR surface) {
+	SwapchainSupportDetails swapchainDetails{};
+
+	uint32_t surfaceFormatsCount{};
+	vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, surface, &surfaceFormatsCount, nullptr);
+
+	if (surfaceFormatsCount) {
+		swapchainDetails.surfaceFormats.resize(surfaceFormatsCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, surface, &surfaceFormatsCount, swapchainDetails.surfaceFormats.data());
+	}
+
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pDevice, surface, &swapchainDetails.surfaceCapabilities);
+
+	uint32_t presentModesCount{};
+	vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, surface, &presentModesCount, nullptr);
+
+	if (presentModesCount) {
+		swapchainDetails.presentModes.resize(presentModesCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, surface, &presentModesCount, swapchainDetails.presentModes.data());
+	}
+
+	chooseSwapchainExtent(swapchainDetails.surfaceCapabilities);
+	return swapchainDetails;
+}
+
+VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats) {
+	VkSurfaceFormatKHR bestFormat{};
+	int bestFormatRating{-1};
+
+	for (const auto& format : avaliableFormats) {
+		int thisFormatRating{};
+		if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			thisFormatRating += 10;
+		}
+		if (format.format == VK_FORMAT_B8G8R8A8_SRGB) {
+			thisFormatRating += 100;
+		}
+
+		if (thisFormatRating > bestFormatRating) {
+			bestFormat = format;
+			bestFormatRating = thisFormatRating;
+		}
+	}
+	return bestFormat;
+}
+
+VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes) {
+	for (const auto& presentMode : presentModes) {
+		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+			return presentMode;
+		}
+	}
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+void chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities) {
+	int width{};	
+	int height{};	
+	SDL_Vulkan_GetDrawableSize(window, &width, &height);
+
+	VkExtent2D windowExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+}
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -342,5 +462,3 @@ VkDebugUtilsMessengerCreateInfoEXT populateDebugCreateInfo() {
 
 	return createInfo;
 }
-
-
