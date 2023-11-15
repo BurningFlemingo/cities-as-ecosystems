@@ -78,8 +78,14 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	VkSurfaceKHR surface{};
+	{
+		SDL_Vulkan_CreateSurface(window, instance, &surface);
+	}
+
 	VkPhysicalDevice physicalDevice{};
 	std::optional<uint32_t> graphicsQueueFamilyIndex{};
+	std::optional<uint32_t> presentQueueFamilyIndex{};
 	{
 
 		uint32_t nPhysicalDevices{};
@@ -91,10 +97,8 @@ int main(int argc, char* argv[]) {
 		int highestRating{-1};
 		for (const auto& pDevice : physicalDevices) {
 			VkPhysicalDeviceProperties pDeviceProps{};
-			VkPhysicalDeviceFeatures pDeviceFeats{};
 
 			vkGetPhysicalDeviceProperties(pDevice, &pDeviceProps);
-			vkGetPhysicalDeviceFeatures(pDevice, &pDeviceFeats);
 
 			int currentRating{};
 
@@ -118,30 +122,70 @@ int main(int argc, char* argv[]) {
 			std::vector<VkQueueFamilyProperties> queueFamilyProps(queueFamilyCount);
 			vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, queueFamilyProps.data());
 
+			std::optional<uint32_t> graphicsFamilyIndex;
+			std::optional<uint32_t> presentFamilyIndex;
 			for (int i{}; i < queueFamilyProps.size(); i++) {
 				if (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-					graphicsQueueFamilyIndex.value() = i;
+					graphicsFamilyIndex = i;
+				}
+
+				VkBool32 surfaceSupport{};
+				vkGetPhysicalDeviceSurfaceSupportKHR(pDevice, graphicsFamilyIndex.value(), surface, &surfaceSupport);
+				if (surfaceSupport) {
+					presentFamilyIndex = i;
 				}
 			}
 
-			if ((currentRating > highestRating) && (graphicsQueueFamilyIndex.has_value())) {
-				highestRating = currentRating;
-				physicalDevice = pDevice;
+			if (graphicsFamilyIndex.has_value() && presentFamilyIndex.has_value()) {
+
+				if (currentRating > highestRating) {
+					graphicsQueueFamilyIndex = graphicsFamilyIndex.value();
+					presentQueueFamilyIndex = presentFamilyIndex.value();
+					physicalDevice = pDevice;
+				}
 			}
+
 		}
 	}
 
+	VkDevice device{};
 	{
 		const float queuePriority{1.f};
 
-		VkDeviceQueueCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		createInfo.queueFamilyIndex = graphicsQueueFamilyIndex.value();
-		createInfo.queueCount = 1;
-		createInfo.pQueuePriorities = &queuePriority;
+		VkDeviceQueueCreateInfo graphicsQueueCreateInfo{};
+		graphicsQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		graphicsQueueCreateInfo.queueFamilyIndex = graphicsQueueFamilyIndex.value();
+		graphicsQueueCreateInfo.queueCount = 1;
+		graphicsQueueCreateInfo.pQueuePriorities = &queuePriority;
 
+		VkDeviceQueueCreateInfo presentQueueCreateInfo{};
+		presentQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		presentQueueCreateInfo.queueFamilyIndex = presentQueueFamilyIndex.value();
+		presentQueueCreateInfo.queueCount = 1;
+		presentQueueCreateInfo.pQueuePriorities = &queuePriority;
+
+		VkDeviceQueueCreateInfo queuesToCreate[2];
+		queuesToCreate[0] = graphicsQueueCreateInfo;
+		queuesToCreate[1] = presentQueueCreateInfo;
+
+		VkPhysicalDeviceFeatures pDeviceFeats{};
+		vkGetPhysicalDeviceFeatures(physicalDevice, &pDeviceFeats);
+
+		VkDeviceCreateInfo deviceCreateInfo{};
+		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		deviceCreateInfo.pQueueCreateInfos = queuesToCreate;
+		deviceCreateInfo.queueCreateInfoCount = 2;
+		deviceCreateInfo.pEnabledFeatures = &pDeviceFeats;
+
+		vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
 	}
 
+	VkQueue graphicsQueue{};
+	vkGetDeviceQueue(device, graphicsQueueFamilyIndex.value(), 0, &graphicsQueue);
+
+	VkQueue presentQueue{};
+	vkGetDeviceQueue(device, presentQueueFamilyIndex.value(), 0, &presentQueue);
+	
 	SDL_Event e;
 	bool running{true};
 	while (running) {
@@ -160,6 +204,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	vkDestroySurfaceKHR(instance, surface, nullptr);
+	vkDestroyDevice(device, nullptr);
 	VK_DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 	vkDestroyInstance(instance, nullptr);
 	SDL_DestroyWindow(window);
@@ -183,6 +229,7 @@ std::vector<const char*> getExtensions(SDL_Window* window) {
 		extensions.emplace_back(extension);
 	}
 	extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+	extensions.emplace_back("VK_KHR_surface");
 
 	uint32_t avaliableExtensionCount{};
 	vkEnumerateInstanceExtensionProperties(nullptr, &avaliableExtensionCount, nullptr);
