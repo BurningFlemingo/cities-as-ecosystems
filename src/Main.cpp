@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <optional>
+#include <limits.h>
 
 constexpr uint32_t WINDOW_HEIGHT{1080 / 2};
 constexpr uint32_t WINDOW_WIDTH{1920 / 2};
@@ -26,7 +27,7 @@ SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfac
 
 VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats);
 VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
-void chooseSwapchainExtent(VkSurfaceCapabilitiesKHR capabilities);
+VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities);
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -366,7 +367,6 @@ SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfac
 		vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, surface, &presentModesCount, swapchainDetails.presentModes.data());
 	}
 
-	chooseSwapchainExtent(swapchainDetails.surfaceCapabilities);
 	return swapchainDetails;
 }
 
@@ -400,12 +400,22 @@ VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>&
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-void chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities) {
+VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities) {
 	int width{};	
 	int height{};	
 	SDL_Vulkan_GetDrawableSize(window, &width, &height);
 
 	VkExtent2D windowExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+	windowExtent.width = std::clamp(
+			windowExtent.width, 
+			capabilities.minImageExtent.width,
+			capabilities.maxImageExtent.width);
+	windowExtent.height = std::clamp(
+			windowExtent.height, 
+			capabilities.minImageExtent.height,
+			capabilities.maxImageExtent.height);
+
+	return windowExtent;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
