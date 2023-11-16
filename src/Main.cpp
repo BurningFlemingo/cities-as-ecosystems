@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <optional>
 #include <limits.h>
+#include <fstream>
 
 constexpr uint32_t WINDOW_HEIGHT{1080 / 2};
 constexpr uint32_t WINDOW_WIDTH{1920 / 2};
@@ -19,6 +20,8 @@ struct SwapchainSupportDetails {
 	std::vector<VkSurfaceFormatKHR> surfaceFormats{};
 	std::vector<VkPresentModeKHR> presentModes{};
 };
+
+std::vector<char> readFile(const std::string& filename);
 
 std::vector<const char*> getLayers();
 std::vector<const char*> getExtensions(SDL_Window* window);
@@ -100,6 +103,7 @@ int main(int argc, char* argv[]) {
 	std::optional<uint32_t> graphicsQueueFamilyIndex{};
 	std::optional<uint32_t> presentQueueFamilyIndex{};
 	std::vector<const char*> deviceExtensions{};
+	SwapchainSupportDetails swapchainSupportDetails{};
 	{
 		std::vector<const char*> requiredDeviceExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
@@ -139,6 +143,7 @@ int main(int argc, char* argv[]) {
 
 			std::optional<uint32_t> graphicsFamilyIndex;
 			std::optional<uint32_t> presentFamilyIndex;
+
 			for (int i{}; i < queueFamilyProps.size(); i++) {
 				if (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 					graphicsFamilyIndex = i;
@@ -155,22 +160,22 @@ int main(int argc, char* argv[]) {
 
 				std::vector<const char*> tempDeviceExtensions = getDeviceExtensions(pDevice, requiredDeviceExtensions);
 				if (currentRating > highestRating && !tempDeviceExtensions.empty()) {
-					SwapchainSupportDetails swapchainSupportDetails{querySwapchainSupport(pDevice, surface)};
+					SwapchainSupportDetails thisDeviceSwapchainSupport{querySwapchainSupport(pDevice, surface)};
 					bool swapchainSupported{
-						!swapchainSupportDetails.surfaceFormats.empty() &&
-						!swapchainSupportDetails.presentModes.empty()
+						!thisDeviceSwapchainSupport.surfaceFormats.empty() &&
+						!thisDeviceSwapchainSupport.presentModes.empty()
 					};
 					if (swapchainSupported) {
-						chooseSwapchainSurfaceFormat(swapchainSupportDetails.surfaceFormats);
+						chooseSwapchainSurfaceFormat(thisDeviceSwapchainSupport.surfaceFormats);
 						graphicsQueueFamilyIndex = graphicsFamilyIndex.value();
 						presentQueueFamilyIndex = presentFamilyIndex.value();
 						deviceExtensions = tempDeviceExtensions;
 						physicalDevice = pDevice;
-					}
 
+						swapchainSupportDetails = thisDeviceSwapchainSupport;
+					}
 				}
 			}
-
 		}
 	}
 
@@ -213,7 +218,78 @@ int main(int argc, char* argv[]) {
 
 	VkQueue presentQueue{};
 	vkGetDeviceQueue(device, presentQueueFamilyIndex.value(), 0, &presentQueue);
-	
+
+	VkSurfaceFormatKHR surfaceFormat{chooseSwapchainSurfaceFormat(swapchainSupportDetails.surfaceFormats)};
+	VkPresentModeKHR presentMode{chooseSwapchainPresentMode(swapchainSupportDetails.presentModes)};
+	VkExtent2D surfaceExtent{chooseSwapchainExtent(window, swapchainSupportDetails.surfaceCapabilities)};
+
+	VkSwapchainKHR swapchain{};
+	{
+		uint32_t imageCount{};
+		imageCount = swapchainSupportDetails.surfaceCapabilities.minImageCount + 1;
+		if (imageCount > swapchainSupportDetails.surfaceCapabilities.maxImageCount && swapchainSupportDetails.surfaceCapabilities.maxImageCount > 0) {
+			imageCount = swapchainSupportDetails.surfaceCapabilities.maxImageCount;
+		}
+
+		uint32_t queueFamilyIndices[2]{ graphicsQueueFamilyIndex.value(), presentQueueFamilyIndex.value() };
+
+		VkSwapchainCreateInfoKHR swapchainCreateInfo{};
+		swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		swapchainCreateInfo.presentMode = presentMode;
+		swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+		swapchainCreateInfo.imageFormat = surfaceFormat.format;
+		swapchainCreateInfo.imageExtent = surfaceExtent;
+		swapchainCreateInfo.surface = surface;
+		swapchainCreateInfo.minImageCount = imageCount;
+		swapchainCreateInfo.imageArrayLayers = 1;
+		swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		swapchainCreateInfo.queueFamilyIndexCount = 2;
+		swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchainCreateInfo.clipped = VK_TRUE;
+		swapchainCreateInfo.preTransform = swapchainSupportDetails.surfaceCapabilities.currentTransform;
+		swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+		vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain);
+	}
+
+	uint32_t swapchainImageCount{};
+	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, nullptr);
+
+	std::vector<VkImage> swapchainImages(swapchainImageCount);
+	vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages.data());
+
+	std::vector<VkImageView> imageViews;
+	{
+		for (const auto& image : swapchainImages) {
+			VkImageViewCreateInfo imageViewCreateInfo{};
+			imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			imageViewCreateInfo.image = image;
+			imageViewCreateInfo.format = surfaceFormat.format;
+			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+
+			imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+			imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+			imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+			imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+			imageViewCreateInfo.subresourceRange.layerCount = 1;
+			imageViewCreateInfo.subresourceRange.levelCount = 1;
+			imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+			imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+			imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+			VkImageView imageView{};
+			vkCreateImageView(device, &imageViewCreateInfo, nullptr, &imageView);
+			imageViews.emplace_back(imageView);
+		}
+	}
+
+	{
+		std::vector<char> vertShader{readFile("shaders/first.vert")};
+		std::vector<char> fragShader{readFile("shaders/first.frag")};
+	}
+
 	SDL_Event e;
 	bool running{true};
 	while (running) {
@@ -232,6 +308,10 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	for (auto& imageView : imageViews) {
+		vkDestroyImageView(device, imageView, nullptr);
+	}
+	vkDestroySwapchainKHR(device, swapchain, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyDevice(device, nullptr);
 	VK_DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
@@ -240,6 +320,17 @@ int main(int argc, char* argv[]) {
 	SDL_Quit();
 
 	return 0;
+}
+
+std::vector<char> readFile(const std::string& filename) {
+	std::fstream file(filename, std::ios::ate | std::ios::binary);
+	auto fileLength{static_cast<size_t>(file.tellg())};
+
+	std::vector<char> buf(fileLength);
+	file.read(buf.data(), fileLength);
+	file.close();
+
+	return buf;
 }
 
 std::vector<const char*> getExtensions(SDL_Window* window) {
@@ -406,14 +497,25 @@ VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR ca
 	SDL_Vulkan_GetDrawableSize(window, &width, &height);
 
 	VkExtent2D windowExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-	windowExtent.width = std::clamp(
-			windowExtent.width, 
-			capabilities.minImageExtent.width,
-			capabilities.maxImageExtent.width);
-	windowExtent.height = std::clamp(
-			windowExtent.height, 
-			capabilities.minImageExtent.height,
-			capabilities.maxImageExtent.height);
+	if (capabilities.maxImageExtent.width > 0) {
+		windowExtent.width = std::clamp(
+				windowExtent.width, 
+				capabilities.minImageExtent.width,
+				capabilities.maxImageExtent.width);
+	} else {
+		windowExtent.width = std::max(windowExtent.width, 
+				capabilities.minImageExtent.width);
+	}
+
+	if (capabilities.maxImageExtent.height > 0) {
+		windowExtent.height = std::clamp(
+				windowExtent.height, 
+				capabilities.minImageExtent.height,
+				capabilities.maxImageExtent.height);
+	} else {
+		windowExtent.height = std::max(windowExtent.height, 
+				capabilities.minImageExtent.height);
+	}
 
 	return windowExtent;
 }

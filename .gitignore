@@ -3,6 +3,8 @@
 !src
 !src/**.cpp
 !src/**.h
+!src/shaders
+!src/shaders/**
 !vcpkg
 !vcpkg/*
 !.gitmodules
@@ -10,3 +12,4 @@
 !README.md
 !scripts
 !scripts/**
+
