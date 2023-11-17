@@ -15,4 +15,4 @@ set(
 
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
-target_link_libraries(CitiesAsEcosystems PUBLIC SDL2::SDL2 SDL2::SDL2main Vulkan::Vulkan)
+target_link_libraries(CitiesAsEcosystems PUBLIC Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)

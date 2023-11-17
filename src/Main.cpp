@@ -286,8 +286,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	{
-		std::vector<char> vertShader{readFile("shaders/first.vert")};
-		std::vector<char> fragShader{readFile("shaders/first.frag")};
+		std::vector<char> vertShader{readFile("./shaders/first_vert.spv")};
+		std::vector<char> fragShader{readFile("./shaders/first_frag.spv")};
 	}
 
 	SDL_Event e;
@@ -323,7 +323,12 @@ int main(int argc, char* argv[]) {
 }
 
 std::vector<char> readFile(const std::string& filename) {
-	std::fstream file(filename, std::ios::ate | std::ios::binary);
+	std::ifstream file(filename, std::ios::binary | std::ios::ate);
+	if (!file) {
+		std::cout << "could not open shader" << std::endl;
+		return {};
+	}
+
 	auto fileLength{static_cast<size_t>(file.tellg())};
 
 	std::vector<char> buf(fileLength);
