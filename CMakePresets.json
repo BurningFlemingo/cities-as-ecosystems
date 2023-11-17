@@ -1,0 +1,136 @@
+
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "windows-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "linux-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "macos-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
+            "name": "windows-debug",
+            "displayName": "Windows Debug",
+            "inherits": "windows-base",
+            "binaryDir": "${sourceDir}/build/Windows/Debug/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        },
+        {
+            "name": "windows-release",
+            "displayName": "Windows Release",
+            "inherits": "windows-base",
+            "binaryDir": "${sourceDir}/build/Windows/Release/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "windows-internal",
+            "displayName": "Windows Internal",
+            "inherits": "windows-base",
+            "binaryDir": "${sourceDir}/build/Windows/Internal/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Internal",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        },
+        {
+            "name": "linux-debug",
+            "displayName": "Linux Debug",
+            "inherits": "linux-base",
+            "binaryDir": "${sourceDir}/build/Linux/Debug/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        },
+        {
+            "name": "linux-release",
+            "displayName": "Linux Release",
+            "inherits": "linux-base",
+            "binaryDir": "${sourceDir}/build/Linux/Release/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "linux-internal",
+            "displayName": "Linux Internal",
+            "inherits": "linux-base",
+            "binaryDir": "${sourceDir}/build/Linux/Internal/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Internal",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        },
+        {
+            "name": "macos-debug",
+            "displayName": "macOS Debug",
+            "inherits": "macos-base",
+            "binaryDir": "${sourceDir}/build/Macos/Debug/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        },
+        {
+            "name": "macos-release",
+            "displayName": "macOS Release",
+            "inherits": "macos-base",
+            "binaryDir": "${sourceDir}/build/Macos/Release/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "macos-internal",
+            "displayName": "macOS Internal",
+            "inherits": "macos-base",
+            "binaryDir": "${sourceDir}/build/Macos/Internal/",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Internal",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        }
+    ]
+}
+

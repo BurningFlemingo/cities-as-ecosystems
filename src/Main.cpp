@@ -286,8 +286,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	{
-		std::vector<char> vertShader{readFile("./shaders/first_vert.spv")};
-		std::vector<char> fragShader{readFile("./shaders/first_frag.spv")};
+		std::vector<char> vertShader{readFile("./shaders/first.vert.spv")};
+		std::vector<char> fragShader{readFile("./shaders/first.frag.spv")};
 	}
 
 	SDL_Event e;

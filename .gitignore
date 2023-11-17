@@ -9,6 +9,7 @@
 !vcpkg/*
 !.gitmodules
 !CMakeLists.txt
+!CMakePresets.json
 !README.md
 !scripts
 !scripts/**
