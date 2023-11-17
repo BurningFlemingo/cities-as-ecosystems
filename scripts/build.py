@@ -31,8 +31,8 @@ if __name__ == "__main__":
 
     os.makedirs(buildPath(buildDir, "shaders"), exist_ok=True)
 
-    glslcCommandVert = f"glslc {buildPath(srcDir, 'shaders', 'first.vert')} -o {buildPath(buildDir, 'shaders', 'firstVert.spv')}"
-    glslcCommandFrag = f"glslc {buildPath(srcDir, 'shaders', 'first.frag')} -o {buildPath(buildDir, 'shaders', 'firstFrag.spv')}"
+    glslcCommandVert = f"glslc {buildPath(srcDir, 'shaders', 'first.vert')} -o {buildPath(buildDir, 'shaders', 'first_vert.spv')}"
+    glslcCommandFrag = f"glslc {buildPath(srcDir, 'shaders', 'first.frag')} -o {buildPath(buildDir, 'shaders', 'first_frag.spv')}"
 
     if os.path.exists(vcpkgDir):
         cmakeVcpkgToolchainArg = f"-DCMAKE_TOOLCHAIN_FILE={buildPath(vcpkgDir, 'scripts', 'buildsystems', 'vcpkg.cmake')}"
