@@ -7,7 +7,8 @@ ninja
 
 ## project libraries
 SDL2,
-glm
+glm,
+vulkan sdk
 
 ## setup
     git clone git@github.com:burningflemingo/cities-as-ecosystems --triplet=x64-${platform} --recursive
