@@ -5,8 +5,8 @@
 !src/**.h
 !src/shaders
 !src/shaders/**
-!vcpkg
-!vcpkg/*
+!vendor
+!vendor/*
 !.gitmodules
 !CMakeLists.txt
 !CMakePresets.json
