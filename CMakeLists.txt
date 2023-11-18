@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
 
-set(PROJECT_NAME CitiesAsEcosystems)
-project(${PROJECT_NAME})
+project(CitiesAsEcosystems)
 
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
+
+set(CMAKE_CXX_STANDARD 20)
 
 set(SHADERS_SRC_DIR "${CMAKE_SOURCE_DIR}/src/shaders")
 set(SHADERS_BIN_DIR "${CMAKE_BINARY_DIR}/shaders/")
@@ -24,8 +25,8 @@ foreach(SHADER ${SHADERS})
 	get_filename_component(SHADER_NAME ${SHADER} NAME)
 	set(SHADER_BIN_NAME "${SHADERS_BIN_DIR}/${SHADER_NAME}.spv")
 	add_custom_command(
-		MAIN_DEPENDENCY "${SHADER}"
-		DEPENDS "${SHADER_BIN_DIR}"
+		MAIN_DEPENDENCY "${SHADER_BIN_DIR}"
+		DEPENDS "${SHADER}"
 		OUTPUT "${SHADER_BIN_NAME}"
 		COMMAND "${GLSLC}" "${SHADER}" "-o" "${SHADER_BIN_NAME}"
 		COMMENT "Compiling ${SHADER_NAME}"
@@ -35,16 +36,11 @@ endforeach()
 
 add_custom_target(build_shaders DEPENDS ${SPV_SHADERS})
 
-set(
-	SRC_FILES
-	"${CMAKE_SOURCE_DIR}/src/Main.cpp"
-	)
+set(SRC_FILES
+	"${CMAKE_SOURCE_DIR}/src/Main.cpp")
 
+add_executable(CitiesAsEcosystems ${SRC_FILES})
 
-set(CMAKE_CXX_STANDARD 20)
+target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
 
-add_executable(${PROJECT_NAME} ${SRC_FILES})
-
-target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
-
-add_dependencies(${PROJECT_NAME} build_shaders)
+add_dependencies(CitiesAsEcosystems build_shaders)
