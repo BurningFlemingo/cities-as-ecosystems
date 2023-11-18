@@ -53,14 +53,15 @@ add_custom_command(
 	COMMENT "Copying compile_commands.json to src directory"
 	VERBATIM)
 
-add_custom_command(
-	TARGET CitiesAsEcosystems
-	POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-	"${CMAKE_SOURCE_DIR}/src/assets/"
-	"${CMAKE_BINARY_DIR}/assets/"
-	DEPENDS "${CMAKE_SOURCE_DIR}/src/assets/"
-	COMMENT "Copying assets to bin directory"
-	VERBATIM)
+# currently no assets
+# add_custom_command(
+# 	TARGET CitiesAsEcosystems
+# 	POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy
+# 	"${CMAKE_SOURCE_DIR}/src/assets/"
+# 	"${CMAKE_BINARY_DIR}/assets/"
+# 	DEPENDS "${CMAKE_SOURCE_DIR}/src/assets/"
+# 	COMMENT "Copying assets to bin directory"
+# 	VERBATIM)
 
 add_dependencies(CitiesAsEcosystems build_shaders)
