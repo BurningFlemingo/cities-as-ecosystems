@@ -298,8 +298,8 @@ int main(int argc, char* argv[]) {
 
 		VkShaderModuleCreateInfo fShaderModuleCreateInfo{};
 		fShaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		fShaderModuleCreateInfo.codeSize = vertShader.size();
-		fShaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(vertShader.data());
+		fShaderModuleCreateInfo.codeSize = fragShader.size();
+		fShaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(fragShader.data());
 
 		vkCreateShaderModule(device, &vShaderModuleCreateInfo, nullptr, &vertexShaderModule);
 		vkCreateShaderModule(device, &fShaderModuleCreateInfo, nullptr, &fragmentShaderModule);
@@ -321,6 +321,42 @@ int main(int argc, char* argv[]) {
 
 		pipelineStages[0] = vertShaderStageCreateInfo;
 		pipelineStages[1] = fragShaderStageCreateInfo;
+	}
+
+	VkViewport viewport{};
+	VkRect2D scissor{};
+	{
+		std::vector<VkDynamicState> dynamicStates{
+			VK_DYNAMIC_STATE_VIEWPORT, 
+			VK_DYNAMIC_STATE_SCISSOR
+		};
+		VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
+		dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+		dynamicStateCreateInfo.pDynamicStates = dynamicStates.data();
+		dynamicStateCreateInfo.dynamicStateCount = dynamicStates.size();
+
+		VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo{};
+		vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
+		vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
+		vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
+		vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
+
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo{}; 
+		inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		inputAssemblyCreateInfo.primitiveRestartEnable = 0;
+
+		viewport.width = (float)surfaceExtent.width;
+		viewport.height = (float)surfaceExtent.height;
+		viewport.maxDepth = 1.0f;
+
+		VkPipelineViewportStateCreateInfo viewportCreateInfo{};
+		viewportCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportCreateInfo.scissorCount = 1;
+		viewportCreateInfo.viewportCount = 1;
+
+		scissor.extent = surfaceExtent;
 	}
 
 	SDL_Event e;
@@ -367,6 +403,7 @@ std::vector<char> readFile(const std::string& filename) {
 	auto fileLength{static_cast<size_t>(file.tellg())};
 
 	std::vector<char> buf(fileLength);
+	file.seekg(0);
 	file.read(buf.data(), fileLength);
 	file.close();
 
