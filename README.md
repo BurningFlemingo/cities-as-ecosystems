@@ -18,18 +18,19 @@ vulkan sdk
 #### alternatively
     git clone git@github.com:burningflemingo/cities-as-ecosystems --recursive
     cd cities-as-ecosystems
-    cd ./vcpkg/
+    cd ./vendor/vcpkg/
     bootstrap-vcpkg (.sh or .bat depending on linux or windows)
     vcpkg install sdl2[core,vulkan] glm vulkan --recurse
     cd ..
 
 ## build 
-    python scripts/build.py
+    cmake --list-presets
+    python scripts/build.py (preset)
     
 #### alternatively
-    mkdir build
-    cmake -B ./build/ -S ./ -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -G Ninja
-    cd build
+    cmake --list-presets
+    cmake --preset (preset)
+    cd build/(preset)
     ninja
 
 
