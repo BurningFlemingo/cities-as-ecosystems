@@ -5,6 +5,8 @@
 !src/**.h
 !src/shaders
 !src/shaders/**
+!src/assets
+!src/assets/**
 !vendor
 !vendor/*
 !.gitmodules

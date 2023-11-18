@@ -9,8 +9,7 @@
 			"binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "cl.exe",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake",
-				"INTERNAL": "0"
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
             },
             "condition": {
                 "type": "equals",
@@ -25,8 +24,7 @@
 			"binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake",
-				"INTERNAL": "0"
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
             },
             "condition": {
                 "type": "equals",
@@ -41,8 +39,7 @@
 			"binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake",
-				"INTERNAL": "0"
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
             },
             "condition": {
                 "type": "equals",
@@ -73,7 +70,6 @@
             "inherits": "windows-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-				"INTERNAL": "1",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "1",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
             }
@@ -101,7 +97,6 @@
             "inherits": "linux-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-				"INTERNAL": "1",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
             }
         },
@@ -128,7 +123,6 @@
             "inherits": "macos-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-				"INTERNAL": "1",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
             }
         }

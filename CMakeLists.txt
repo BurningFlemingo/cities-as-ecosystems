@@ -43,4 +43,26 @@ add_executable(CitiesAsEcosystems ${SRC_FILES})
 
 target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
 
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
+
+add_custom_command(
+	TARGET CitiesAsEcosystems
+	POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+	"${CMAKE_BINARY_DIR}/compile_commands.json"
+	"${CMAKE_SOURCE_DIR}/src/compile_commands.json"
+	DEPENDS "${CMAKE_BINARY_DIR}/compile_commands.json"
+	COMMENT "Copying compile_commands.json to src directory"
+	VERBATIM)
+
+add_custom_command(
+	TARGET CitiesAsEcosystems
+	POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+	"${CMAKE_SOURCE_DIR}/src/assets/"
+	"${CMAKE_BINARY_DIR}/assets/"
+	DEPENDS "${CMAKE_SOURCE_DIR}/src/assets/"
+	COMMENT "Copying assets to bin directory"
+	VERBATIM)
+
 add_dependencies(CitiesAsEcosystems build_shaders)
