@@ -9,7 +9,8 @@
 			"binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "cl.exe",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake",
+				"INTERNAL": "0"
             },
             "condition": {
                 "type": "equals",
@@ -24,7 +25,8 @@
 			"binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake",
+				"INTERNAL": "0"
             },
             "condition": {
                 "type": "equals",
@@ -39,7 +41,8 @@
 			"binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake",
+				"INTERNAL": "0"
             },
             "condition": {
                 "type": "equals",
@@ -52,7 +55,7 @@
             "displayName": "Windows Debug",
             "inherits": "windows-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
             }
         },
@@ -69,8 +72,10 @@
             "displayName": "Windows Internal",
             "inherits": "windows-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Internal",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"INTERNAL": "1",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
             }
         },
         {
@@ -95,7 +100,8 @@
             "displayName": "Linux Internal",
             "inherits": "linux-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Internal",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"INTERNAL": "1",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
             }
         },
@@ -121,7 +127,8 @@
             "displayName": "macOS Internal",
             "inherits": "macos-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Internal",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"INTERNAL": "1",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
             }
         }
