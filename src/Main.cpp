@@ -285,9 +285,42 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	VkShaderModule vertexShaderModule{};
+	VkShaderModule fragmentShaderModule{};
 	{
 		std::vector<char> vertShader{readFile("./shaders/first.vert.spv")};
 		std::vector<char> fragShader{readFile("./shaders/first.frag.spv")};
+
+		VkShaderModuleCreateInfo vShaderModuleCreateInfo{};
+		vShaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		vShaderModuleCreateInfo.codeSize = vertShader.size();  // size in bytes
+		vShaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(vertShader.data());
+
+		VkShaderModuleCreateInfo fShaderModuleCreateInfo{};
+		fShaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		fShaderModuleCreateInfo.codeSize = vertShader.size();
+		fShaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(vertShader.data());
+
+		vkCreateShaderModule(device, &vShaderModuleCreateInfo, nullptr, &vertexShaderModule);
+		vkCreateShaderModule(device, &fShaderModuleCreateInfo, nullptr, &fragmentShaderModule);
+	}
+
+	VkPipelineShaderStageCreateInfo pipelineStages[2];
+	{
+		VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo{};
+		vertShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		vertShaderStageCreateInfo.module = vertexShaderModule;
+		vertShaderStageCreateInfo.pName = "main";
+		vertShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+
+		VkPipelineShaderStageCreateInfo fragShaderStageCreateInfo{};
+		fragShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		fragShaderStageCreateInfo.module = fragmentShaderModule;
+		fragShaderStageCreateInfo.pName = "main";
+		fragShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		pipelineStages[0] = vertShaderStageCreateInfo;
+		pipelineStages[1] = fragShaderStageCreateInfo;
 	}
 
 	SDL_Event e;
@@ -311,6 +344,8 @@ int main(int argc, char* argv[]) {
 	for (auto& imageView : imageViews) {
 		vkDestroyImageView(device, imageView, nullptr);
 	}
+	vkDestroyShaderModule(device, vertexShaderModule, nullptr);
+	vkDestroyShaderModule(device, fragmentShaderModule, nullptr);
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyDevice(device, nullptr);

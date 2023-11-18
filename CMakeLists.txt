@@ -43,8 +43,6 @@ add_executable(CitiesAsEcosystems ${SRC_FILES})
 
 target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
 
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
-
 add_custom_command(
 	TARGET CitiesAsEcosystems
 	POST_BUILD
