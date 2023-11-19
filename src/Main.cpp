@@ -199,14 +199,14 @@ int main(int argc, char* argv[]) {
 		queuesToCreate[0] = graphicsQueueCreateInfo;
 		queuesToCreate[1] = presentQueueCreateInfo;
 
-		VkPhysicalDeviceFeatures pDeviceFeats{};
-		vkGetPhysicalDeviceFeatures(physicalDevice, &pDeviceFeats);
+		// VkPhysicalDeviceFeatures pDeviceFeats{};
+		// vkGetPhysicalDeviceFeatures(physicalDevice, &pDeviceFeats);
 
 		VkDeviceCreateInfo deviceCreateInfo{};
 		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		deviceCreateInfo.pQueueCreateInfos = queuesToCreate;
 		deviceCreateInfo.queueCreateInfoCount = 2;
-		deviceCreateInfo.pEnabledFeatures = &pDeviceFeats;
+		deviceCreateInfo.pEnabledFeatures = nullptr;
 		deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
 		deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
@@ -357,6 +357,19 @@ int main(int argc, char* argv[]) {
 		viewportCreateInfo.viewportCount = 1;
 
 		scissor.extent = surfaceExtent;
+
+		VkPipelineRasterizationStateCreateInfo rasterizerCreationInfo{};
+		rasterizerCreationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterizerCreationInfo.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterizerCreationInfo.depthBiasEnable = VK_FALSE;
+		rasterizerCreationInfo.rasterizerDiscardEnable = VK_FALSE;
+
+		rasterizerCreationInfo.lineWidth = 1.0;
+
+		rasterizerCreationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterizerCreationInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+		rasterizerCreationInfo.depthBiasEnable = VK_FALSE;
 	}
 
 	SDL_Event e;
