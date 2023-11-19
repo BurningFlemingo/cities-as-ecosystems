@@ -2,9 +2,9 @@ import os
 import subprocess
 
 
-def runCommand(command):
+def runCommand(command, cwd=None):
     print(f"\tExecuting command: {command}")
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
 
     returnCode = process.returncode
     out, err = process.communicate()
@@ -33,13 +33,13 @@ if __name__ == "__main__":
     platform = os.name  # 'posix' for Linux and Mac, 'nt' for Windows
     if platform == "posix":
         vcpkgBootstrap = f"{buildPath(vcpkgDir, 'bootstrap-vcpkg.sh')}"
-        vcpkgInstall = f"{buildPath(vcpkgDir, 'vcpkg')} install sdl2[core,vulkan] glm vulkan --recurse"
+        vcpkgInstall = f"{buildPath(vcpkgDir, 'vcpkg')} install"
     elif platform == "nt":
         vcpkgBootstrap = f"{buildPath(vcpkgDir, 'bootstrap-vcpkg.bat')}"
-        vcpkgInstall = f"{buildPath(vcpkgDir, 'vcpkg.exe')} install sdl2[core,vulkan] glm vulkan --recurse"
+        vcpkgInstall = f"{buildPath(vcpkgDir, 'vcpkg')} install"
     else:
         print(f"Unsupported platform: {platform}")
         exit()
 
     runCommand(vcpkgBootstrap)
-    runCommand(vcpkgInstall)
+    runCommand(vcpkgInstall, rootDir)
