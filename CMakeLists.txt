@@ -37,7 +37,9 @@ endforeach()
 add_custom_target(build_shaders DEPENDS ${SPV_SHADERS})
 
 set(SRC_FILES
-	"${CMAKE_SOURCE_DIR}/src/Main.cpp")
+	"${CMAKE_SOURCE_DIR}/src/Main.cpp"
+	"${CMAKE_SOURCE_DIR}/src/Swapchain.cpp"
+	)
 
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
