@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.8)
 project(CitiesAsEcosystems)
 
 find_package(SDL2 REQUIRED)
+find_package(glm REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
 

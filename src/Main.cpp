@@ -13,6 +13,7 @@
 #include <optional>
 #include <limits.h>
 #include <fstream>
+#include <array>
 
 std::vector<char> readFile(const std::string& filename);
 
@@ -33,6 +34,11 @@ PFN_vkCreateDebugUtilsMessengerEXT load_PFK_vkCreateDebugUtilsMessengerEXT(VkIns
 PFN_vkDestroyDebugUtilsMessengerEXT load_PFK_vkDestroyDebugUtilsMessengerEXT(VkInstance instance);
 
 VkDebugUtilsMessengerCreateInfoEXT populateDebugCreateInfo();
+
+struct Vertex {
+	glm::vec2 pos;
+	glm::vec3 col;
+};
 
 int main(int argc, char* argv[]) {
 	uint32_t WINDOW_HEIGHT{1080 / 2};
@@ -75,6 +81,7 @@ int main(int argc, char* argv[]) {
 			std::cerr << "could not create vulkan instance" << std::endl;
 		}
 	}
+
 
 	PFN_vkCreateDebugUtilsMessengerEXT VK_CreateDebugUtilsMessengerEXT{load_PFK_vkCreateDebugUtilsMessengerEXT(instance)};
 	PFN_vkDestroyDebugUtilsMessengerEXT VK_DestroyDebugUtilsMessengerEXT{load_PFK_vkDestroyDebugUtilsMessengerEXT(instance)};
@@ -254,6 +261,25 @@ int main(int argc, char* argv[]) {
 
 		pipelineStages[0] = vertShaderStageCreateInfo;
 		pipelineStages[1] = fragShaderStageCreateInfo;
+	}
+
+	std::vector<Vertex> vectices = {
+		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+	};
+
+	VkVertexInputBindingDescription vertexBindingDescription{};
+	std::array<VkVertexInputAttributeDescription, 2> vertexAttributeDescription{};
+	{
+		vertexBindingDescription.binding = 0; // not location, but buffer index
+		vertexBindingDescription.stride = sizeof(Vertex);
+		vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		vertexAttributeDescription[0].binding = 0;
+		vertexAttributeDescription[0].offset = offsetof(Vertex, pos);
+		vertexAttributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
+		vertexAttributeDescription[0].location = 0;
 	}
 
 	VkPipelineLayout pipelineLayout{};
@@ -506,38 +532,34 @@ int main(int argc, char* argv[]) {
 			}
 
 		if (rendering) {
-			{
-				VkResult result{vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX)};
-
-				if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResized) {
-					windowResized = false;
-					VkSwapchainKHR oldSwapchainHandle{swapchain.handle};
-					swapchain = recreateSwapchain(device, window, surface, querySwapchainSupport(physicalDevice, surface), queueFamilyIndices, oldSwapchainHandle);
-
-					vkDeviceWaitIdle(device);
-					destroySwapchain(device, oldSwapchainHandle, &swapchainImageViews, &swapchainFramebuffers);
-
-					swapchainImageViews = createSwapchainImageViews(device, swapchain);
-					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass);
-				} else if (result != VK_SUCCESS) {
-					std::cerr << "could not aquire swapchain image" << std::endl;
-				}
-			}
-
-			vkResetFences(device, 1, &inFlightFences[frame]);
 
 			uint32_t swapchainImageIndex{};
 			{
 				VkResult result {vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex)};
-				if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-					vkDeviceWaitIdle(device);
-					SDL_Vulkan_CreateSurface(window, instance, &surface);
-					swapchain = createSwapchain(device, window, surface, querySwapchainSupport(physicalDevice, surface), queueFamilyIndices);
+				bool swapchainIsDirty{result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResized};
+
+				if (swapchainIsDirty) {
+					windowResized = false;
+					VkSwapchainKHR oldSwapchainHandle{swapchain.handle};
+					swapchain = recreateSwapchain(device, window, surface, querySwapchainSupport(physicalDevice, surface), queueFamilyIndices, oldSwapchainHandle);
+
+					destroySwapchain(device, oldSwapchainHandle, nullptr, nullptr);
+					vkWaitForFences(device, 2, inFlightFences.data(), VK_TRUE, UINT64_MAX);
+
+					destroySwapchainImageViews(device, &swapchainImageViews, &swapchainFramebuffers);
 					swapchainImageViews = createSwapchainImageViews(device, swapchain);
 					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass);
+
+					result = vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex);
 				}
+				if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+					std::cerr << "could not get image from swapchain" << std::endl;
+				}
+
 			}
 
+			vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX);
+			vkResetFences(device, 1, &inFlightFences[frame]);
 			vkResetCommandBuffer(commandBuffers[frame], 0);
 			{
 				VkCommandBufferBeginInfo cmdBuffBeginInfo{};
