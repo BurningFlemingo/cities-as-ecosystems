@@ -264,9 +264,13 @@ int main(int argc, char* argv[]) {
 	}
 
 	std::vector<Vertex> vertices = {
-		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, 
+
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 1.0f}}, 
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, 
 	};
 
 	VkVertexInputBindingDescription vertexBindingDescription{};
@@ -289,6 +293,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	VkBuffer vertexBuffer{};
+	VkDeviceMemory vertexBufferMemory{};
 	{
 		VkBufferCreateInfo bufferCreateInfo{};
 		bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -313,6 +318,17 @@ int main(int argc, char* argv[]) {
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = bufferMemRequirements.size;
 		allocInfo.memoryTypeIndex = typeIndex;
+
+		if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+			std::cerr << "could not allocate vertex buffer memory" << std::endl;
+		}
+
+		vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+
+		void* data;
+		vkMapMemory(device, vertexBufferMemory, 0, bufferCreateInfo.size, 0, &data);
+		memcpy(data, vertices.data(), bufferCreateInfo.size);
+		vkUnmapMemory(device, vertexBufferMemory);
 	}
 
 	VkPipelineLayout pipelineLayout{};
@@ -621,6 +637,10 @@ int main(int argc, char* argv[]) {
 	
 			{
 				vkCmdBindPipeline(commandBuffers[frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+				VkBuffer vertexBuffers[] = {vertexBuffer};
+				VkDeviceSize offsets[] = {0};
+
+				vkCmdBindVertexBuffers(commandBuffers[frame], 0, 1, vertexBuffers, offsets);
 	
 				VkViewport viewport{};
 				viewport.height = static_cast<float>(swapchain.extent.height);
@@ -634,7 +654,7 @@ int main(int argc, char* argv[]) {
 				vkCmdSetScissor(commandBuffers[frame], 0, 1, &scissor);
 			}
 
-			vkCmdDraw(commandBuffers[frame], 3, 1, 0, 0);
+			vkCmdDraw(commandBuffers[frame], vertices.size(), 1, 0, 0);
 			vkCmdEndRenderPass(commandBuffers[frame]);
 			if (vkEndCommandBuffer(commandBuffers[frame]) != VK_SUCCESS) {
 				std::cerr << "could not record command buffer" << std::endl;
@@ -683,6 +703,7 @@ int main(int argc, char* argv[]) {
 	}
 	destroySwapchain(device, swapchain.handle, &swapchainImageViews, &swapchainFramebuffers);
 	vkDestroyBuffer(device, vertexBuffer, nullptr);
+	vkFreeMemory(device, vertexBufferMemory, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDestroyPipeline(device, pipeline, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
