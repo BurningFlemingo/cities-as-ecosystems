@@ -8,35 +8,54 @@ VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceForma
 VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
 VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities);
 
-Swapchain createSwapchain(
-		VkDevice device,
-		SDL_Window* window,
-		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails,
-		const std::vector<uint32_t>& queueFamilyIndices
-		) {
-	VkSurfaceFormatKHR surfaceFormat = chooseSwapchainSurfaceFormat(surfaceSupportDetails.surfaceFormats);
-
-	Swapchain swapchain{};
-	swapchain.format = surfaceFormat.format;
-	swapchain.colorSpace = surfaceFormat.colorSpace;
-	swapchain.presentMode = chooseSwapchainPresentMode(surfaceSupportDetails.presentModes);
-	swapchain.extent = chooseSwapchainExtent(window, surfaceSupportDetails.surfaceCapabilities);
+struct SwapchainInfo {
+	VkPresentModeKHR presentMode{};
+	VkColorSpaceKHR colorSpace{};
+	VkFormat format{};
+	VkExtent2D extent{};
 
 	uint32_t imageCount{};
+};
+
+SwapchainInfo fillSwapchainInfo(SDL_Window* window, const SurfaceSupportDetails& surfaceSupportDetails) {
+	SwapchainInfo swapchainInfo{};
+
+	VkSurfaceFormatKHR surfaceFormat = chooseSwapchainSurfaceFormat(surfaceSupportDetails.surfaceFormats);
+
+	swapchainInfo.format = surfaceFormat.format;
+	swapchainInfo.colorSpace = surfaceFormat.colorSpace;
+	swapchainInfo.presentMode = chooseSwapchainPresentMode(surfaceSupportDetails.presentModes);
+	swapchainInfo.extent = chooseSwapchainExtent(window, surfaceSupportDetails.surfaceCapabilities);
+
+	uint32_t& imageCount{swapchainInfo.imageCount};
 	imageCount = surfaceSupportDetails.surfaceCapabilities.minImageCount + 1;
 	if (imageCount > surfaceSupportDetails.surfaceCapabilities.maxImageCount && surfaceSupportDetails.surfaceCapabilities.maxImageCount > 0) {
 		imageCount = surfaceSupportDetails.surfaceCapabilities.maxImageCount;
 	}
 
+	return swapchainInfo;
+}
+
+Swapchain createSwapchain(
+		VkDevice device,
+		SDL_Window* window,
+		VkSurfaceKHR surface,
+		const SurfaceSupportDetails& surfaceSupportDetails,
+		const std::vector<uint32_t>& queueFamilyIndices) {
+
+	Swapchain swapchain{};
+
+	SwapchainInfo swapchainInfo{fillSwapchainInfo(window, surfaceSupportDetails)};
+
+
 	VkSwapchainCreateInfoKHR swapchainCreateInfo{};
 	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	swapchainCreateInfo.presentMode = swapchain.presentMode;
-	swapchainCreateInfo.imageColorSpace = swapchain.colorSpace;
-	swapchainCreateInfo.imageFormat = swapchain.format;
-	swapchainCreateInfo.imageExtent = swapchain.extent;
+	swapchainCreateInfo.presentMode = swapchainInfo.presentMode;
+	swapchainCreateInfo.imageColorSpace = swapchainInfo.colorSpace;
+	swapchainCreateInfo.imageFormat = swapchainInfo.format;
+	swapchainCreateInfo.imageExtent = swapchainInfo.extent;
 	swapchainCreateInfo.surface = surface;
-	swapchainCreateInfo.minImageCount = imageCount;
+	swapchainCreateInfo.minImageCount = swapchainInfo.imageCount;
 	swapchainCreateInfo.imageArrayLayers = 1;
 	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	swapchainCreateInfo.queueFamilyIndexCount = queueFamilyIndices.size();
@@ -49,6 +68,51 @@ Swapchain createSwapchain(
 	if (vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain.handle) != VK_SUCCESS) {
 		throw std::runtime_error("could not create swapchain");
 	}
+
+	swapchain.presentMode = swapchainInfo.presentMode;
+	swapchain.colorSpace = swapchainInfo.colorSpace;
+	swapchain.format = swapchainInfo.format;
+	swapchain.extent = swapchainInfo.extent;
+
+	return swapchain;
+}
+
+Swapchain recreateSwapchain(VkDevice device,
+		SDL_Window* window,
+		VkSurfaceKHR surface,
+		const SurfaceSupportDetails& surfaceSupportDetails, 
+		const std::vector<uint32_t>& queueFamilyIndices,
+		VkSwapchainKHR oldSwapchainHandle) {
+	Swapchain swapchain{};
+
+	SwapchainInfo swapchainInfo{fillSwapchainInfo(window, surfaceSupportDetails)};
+
+	VkSwapchainCreateInfoKHR swapchainCreateInfo{};
+	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchainCreateInfo.presentMode = swapchainInfo.presentMode;
+	swapchainCreateInfo.imageColorSpace = swapchainInfo.colorSpace;
+	swapchainCreateInfo.imageFormat = swapchainInfo.format;
+	swapchainCreateInfo.imageExtent = swapchainInfo.extent;
+	swapchainCreateInfo.surface = surface;
+	swapchainCreateInfo.minImageCount = swapchainInfo.imageCount;
+	swapchainCreateInfo.imageArrayLayers = 1;
+	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchainCreateInfo.queueFamilyIndexCount = queueFamilyIndices.size();
+	swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+	swapchainCreateInfo.clipped = VK_TRUE;
+	swapchainCreateInfo.preTransform = surfaceSupportDetails.surfaceCapabilities.currentTransform;
+	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	swapchainCreateInfo.oldSwapchain = oldSwapchainHandle;
+
+	if (vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain.handle) != VK_SUCCESS) {
+		throw std::runtime_error("could not create swapchain");
+	}
+
+	swapchain.presentMode = swapchainInfo.presentMode;
+	swapchain.colorSpace = swapchainInfo.colorSpace;
+	swapchain.format = swapchainInfo.format;
+	swapchain.extent = swapchainInfo.extent;
 
 	return swapchain;
 }
@@ -87,6 +151,31 @@ std::vector<VkImageView> createSwapchainImageViews(
 	}
 
 	return swapchainImageViews;
+}
+
+void destroySwapchainFramebuffers(VkDevice device, std::vector<VkFramebuffer>* framebuffers) {
+	for (auto framebuffer : *framebuffers) {
+		vkDestroyFramebuffer(device, framebuffer, nullptr);
+		framebuffer = {};
+	}
+	framebuffers->clear();
+}
+
+void destroySwapchainImageViews(VkDevice device, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers) {
+	if (framebuffers) {
+		destroySwapchainFramebuffers(device, framebuffers);
+	}
+	for (auto& imageView : *imageViews) {
+		vkDestroyImageView(device, imageView, nullptr);
+	}
+	imageViews->clear();
+}
+
+void destroySwapchain(VkDevice device, VkSwapchainKHR swapchainHandle, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers) {
+	if (imageViews) {
+		destroySwapchainImageViews(device, imageViews, framebuffers);
+	}
+	vkDestroySwapchainKHR(device, swapchainHandle, nullptr);
 }
 
 std::vector<VkFramebuffer> createSwapchainFramebuffers(
@@ -173,3 +262,5 @@ VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR ca
 
 	return windowExtent;
 }
+
+

@@ -14,9 +14,6 @@
 #include <limits.h>
 #include <fstream>
 
-uint32_t WINDOW_HEIGHT{1080 / 2};
-uint32_t WINDOW_WIDTH{1920 / 2};
-
 std::vector<char> readFile(const std::string& filename);
 
 std::vector<const char*> getLayers();
@@ -24,9 +21,6 @@ std::vector<const char*> getExtensions(SDL_Window* window);
 std::vector<const char*> getDeviceExtensions(VkPhysicalDevice pDevice, const std::vector<const char*>& requiredExtensions);
 SurfaceSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfaceKHR surface);
 
-VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats);
-VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
-VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities);
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -41,6 +35,9 @@ PFN_vkDestroyDebugUtilsMessengerEXT load_PFK_vkDestroyDebugUtilsMessengerEXT(VkI
 VkDebugUtilsMessengerCreateInfoEXT populateDebugCreateInfo();
 
 int main(int argc, char* argv[]) {
+	uint32_t WINDOW_HEIGHT{1080 / 2};
+	uint32_t WINDOW_WIDTH{1920 / 2};
+
 	if (SDL_Init(SDL_INIT_EVENTS) != 0) {
 		std::cerr << "could not init sdl: " << SDL_GetError() << std::endl;
 	}
@@ -162,7 +159,6 @@ int main(int argc, char* argv[]) {
 						!thisDeviceSwapchainSupport.presentModes.empty()
 					};
 					if (swapchainSupported) {
-						chooseSwapchainSurfaceFormat(thisDeviceSwapchainSupport.surfaceFormats);
 						graphicsQueueFamilyIndex = graphicsFamilyIndex.value();
 						presentQueueFamilyIndex = presentFamilyIndex.value();
 						deviceExtensions = tempDeviceExtensions;
@@ -476,8 +472,10 @@ int main(int argc, char* argv[]) {
 
 	SDL_Event e;
 	bool running{true};
+	bool windowResized{};
+	bool rendering{true};
+	uint32_t frame{};
 	while (running) {
-		for (int frame{}; frame < MAX_FRAMES_IN_FLIGHT; frame++) {
 			while (SDL_PollEvent(&e)) {
 				switch (e.type) {
 					case SDL_QUIT:
@@ -488,18 +486,57 @@ int main(int argc, char* argv[]) {
 							running = false;
 						}
 						break;
-					case SDL_WINDOWEVENT_RESIZED:
-
-					default:
+					case SDL_WINDOWEVENT:
+						switch (e.window.event) {
+							case SDL_WINDOWEVENT_RESIZED:
+							case SDL_WINDOWEVENT_SIZE_CHANGED:
+								windowResized = true;
+								break;
+							case SDL_WINDOWEVENT_MINIMIZED:
+								rendering = false;
+								break;
+							case SDL_WINDOWEVENT_RESTORED:
+								rendering = true;
+								break;
+							default: break;
+						}
 						break;
+					default: break;
 				}
 			}
 
-			vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX);
+		if (rendering) {
+			{
+				VkResult result{vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX)};
+
+				if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResized) {
+					windowResized = false;
+					VkSwapchainKHR oldSwapchainHandle{swapchain.handle};
+					swapchain = recreateSwapchain(device, window, surface, querySwapchainSupport(physicalDevice, surface), queueFamilyIndices, oldSwapchainHandle);
+
+					vkDeviceWaitIdle(device);
+					destroySwapchain(device, oldSwapchainHandle, &swapchainImageViews, &swapchainFramebuffers);
+
+					swapchainImageViews = createSwapchainImageViews(device, swapchain);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass);
+				} else if (result != VK_SUCCESS) {
+					std::cerr << "could not aquire swapchain image" << std::endl;
+				}
+			}
+
 			vkResetFences(device, 1, &inFlightFences[frame]);
 
 			uint32_t swapchainImageIndex{};
-			vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex);
+			{
+				VkResult result {vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex)};
+				if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+					vkDeviceWaitIdle(device);
+					SDL_Vulkan_CreateSurface(window, instance, &surface);
+					swapchain = createSwapchain(device, window, surface, querySwapchainSupport(physicalDevice, surface), queueFamilyIndices);
+					swapchainImageViews = createSwapchainImageViews(device, swapchain);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass);
+				}
+			}
 
 			vkResetCommandBuffer(commandBuffers[frame], 0);
 			{
@@ -579,6 +616,8 @@ int main(int argc, char* argv[]) {
 
 				vkQueuePresentKHR(presentQueue, &presentInfo);
 			}
+
+			frame = (frame + 1) % 2;
 		}
 	}
 	vkDeviceWaitIdle(device);
@@ -587,19 +626,11 @@ int main(int argc, char* argv[]) {
 		vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
 		vkDestroyFence(device, inFlightFences[i], nullptr);
 	}
-
-	for (auto framebuffer : swapchainFramebuffers) {
-		vkDestroyFramebuffer(device, framebuffer, nullptr);
-	}
-
-	for (auto& imageView : swapchainImageViews) {
-		vkDestroyImageView(device, imageView, nullptr);
-	}
+	destroySwapchain(device, swapchain.handle, &swapchainImageViews, &swapchainFramebuffers);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDestroyPipeline(device, pipeline, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-	vkDestroySwapchainKHR(device, swapchain.handle, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyDevice(device, nullptr);
 	VK_DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
