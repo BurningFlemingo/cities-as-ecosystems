@@ -21,7 +21,7 @@ std::vector<const char*> getLayers();
 std::vector<const char*> getExtensions(SDL_Window* window);
 std::vector<const char*> getDeviceExtensions(VkPhysicalDevice pDevice, const std::vector<const char*>& requiredExtensions);
 SurfaceSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfaceKHR surface);
-
+uint32_t findValidMemoryTypeIndex(uint32_t validTypeFlags, VkPhysicalDeviceMemoryProperties pDeviceMemProps, VkMemoryPropertyFlags requiredMemProperties);
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -263,23 +263,56 @@ int main(int argc, char* argv[]) {
 		pipelineStages[1] = fragShaderStageCreateInfo;
 	}
 
-	std::vector<Vertex> vectices = {
+	std::vector<Vertex> vertices = {
 		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
 		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
 	};
 
 	VkVertexInputBindingDescription vertexBindingDescription{};
-	std::array<VkVertexInputAttributeDescription, 2> vertexAttributeDescription{};
+	std::array<VkVertexInputAttributeDescription, 2> vertexAttributeDescriptions{};
 	{
 		vertexBindingDescription.binding = 0; // not location, but buffer index
 		vertexBindingDescription.stride = sizeof(Vertex);
 		vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		vertexAttributeDescription[0].binding = 0;
-		vertexAttributeDescription[0].offset = offsetof(Vertex, pos);
-		vertexAttributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
-		vertexAttributeDescription[0].location = 0;
+		vertexAttributeDescriptions[0].binding = 0;
+		vertexAttributeDescriptions[0].offset = offsetof(Vertex, pos);
+		vertexAttributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		vertexAttributeDescriptions[0].location = 0;
+
+		vertexAttributeDescriptions[1].binding = 0;
+		vertexAttributeDescriptions[1].offset = offsetof(Vertex, col);
+		vertexAttributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		vertexAttributeDescriptions[1].location = 1;
+
+	}
+
+	VkBuffer vertexBuffer{};
+	{
+		VkBufferCreateInfo bufferCreateInfo{};
+		bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferCreateInfo.size = sizeof(vertices[0]) * vertices.size();
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		if (vkCreateBuffer(device, &bufferCreateInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+			std::cerr << "could not create vertex buffer" << std::endl;
+		}
+
+		VkMemoryRequirements bufferMemRequirements;
+		vkGetBufferMemoryRequirements(device, vertexBuffer, &bufferMemRequirements);
+
+		VkPhysicalDeviceMemoryProperties pDeviceMemProperties{};
+		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &pDeviceMemProperties);
+
+		VkMemoryPropertyFlags requiredProperties{VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT};
+		uint32_t typeIndex{findValidMemoryTypeIndex(bufferMemRequirements.memoryTypeBits, pDeviceMemProperties, requiredProperties)};
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = bufferMemRequirements.size;
+		allocInfo.memoryTypeIndex = typeIndex;
 	}
 
 	VkPipelineLayout pipelineLayout{};
@@ -297,10 +330,10 @@ int main(int argc, char* argv[]) {
 
 		VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo{};
 		vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
-		vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
-		vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
-		vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
+		vertexInputCreateInfo.pVertexBindingDescriptions = &vertexBindingDescription;
+		vertexInputCreateInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.data();
+		vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
+		vertexInputCreateInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptions.size();
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo{}; 
 		inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -649,6 +682,7 @@ int main(int argc, char* argv[]) {
 		vkDestroyFence(device, inFlightFences[i], nullptr);
 	}
 	destroySwapchain(device, swapchain.handle, &swapchainImageViews, &swapchainFramebuffers);
+	vkDestroyBuffer(device, vertexBuffer, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDestroyPipeline(device, pipeline, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
@@ -861,4 +895,15 @@ VkDebugUtilsMessengerCreateInfoEXT populateDebugCreateInfo() {
 	createInfo.pfnUserCallback = debugCallback;
 
 	return createInfo;
+}
+
+uint32_t findValidMemoryTypeIndex(uint32_t validTypeFlags, VkPhysicalDeviceMemoryProperties pDeviceMemProps, VkMemoryPropertyFlags requiredMemProperties) {
+	for (int i{}; i < pDeviceMemProps.memoryTypeCount; i++) {
+		VkMemoryPropertyFlags requiredProperties{VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT};
+		if ((validTypeFlags & (1 << i)) &&  // bit i is set only if pDeviceMemProps.memoryTypes[i] is a valid type
+			((pDeviceMemProps.memoryTypes[i].propertyFlags & requiredProperties)) == requiredProperties) {  // having more properties isnt invalid
+			return i;
+		}
+	}
+	throw std::runtime_error("could not find valid memory type");
 }
