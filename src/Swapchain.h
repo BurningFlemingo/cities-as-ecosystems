@@ -6,6 +6,8 @@
 #include <vector>
 #include <stdint.h>
 
+#include "Device.h"
+
 struct Swapchain {
 	VkSwapchainKHR handle;
 
@@ -13,12 +15,6 @@ struct Swapchain {
 	VkColorSpaceKHR colorSpace{};
 	VkFormat format{};
 	VkExtent2D extent{};
-};
-
-struct SurfaceSupportDetails {
-	VkSurfaceCapabilitiesKHR surfaceCapabilities{};
-	std::vector<VkSurfaceFormatKHR> surfaceFormats{};
-	std::vector<VkPresentModeKHR> presentModes{};
 };
 
 Swapchain createSwapchain(

@@ -37,24 +37,41 @@ endforeach()
 
 add_custom_target(build_shaders DEPENDS ${SPV_SHADERS})
 
+set (SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+
 set(SRC_FILES
-	"${CMAKE_SOURCE_DIR}/src/Main.cpp"
-	"${CMAKE_SOURCE_DIR}/src/Swapchain.cpp"
-	)
+	${SRC_DIR}/Main.cpp
+	${SRC_DIR}/Swapchain.cpp
+	${SRC_DIR}/Extensions.cpp
+	${SRC_DIR}/Device.cpp)
+
+if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+	message("building debug implementations")
+	set(SRC_FILES
+		${SRC_FILES}
+		${SRC_DIR}/debug/impl/vulkan/ValidationLayers.cpp)
+else()
+	message("ignoring debug implementations")
+	set(SRC_FILES
+		${SRC_FILES}
+		${SRC_DIR}/debug/stub/vulkan/ValidationLayers.cpp)
+endif()
+
 
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
 target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
+target_include_directories(CitiesAsEcosystems PRIVATE ${SRC_DIR})
 
 add_custom_command(
-	TARGET CitiesAsEcosystems
-	POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-	"${CMAKE_BINARY_DIR}/compile_commands.json"
-	"${CMAKE_SOURCE_DIR}/src/compile_commands.json"
-	DEPENDS "${CMAKE_BINARY_DIR}/compile_commands.json"
-	COMMENT "Copying compile_commands.json to src directory"
-	VERBATIM)
+    OUTPUT "${CMAKE_BINARY_DIR}/compile_commands.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/src/"
+    DEPENDS target_that_generates_compile_commands
+    COMMENT "Copying compile_commands.json to src directory"
+    VERBATIM
+)
 
 # currently no assets
 # add_custom_command(

@@ -3,9 +3,11 @@
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
 
 #include "Swapchain.h"
+#include "Device.h"
+#include "Extensions.h"
+#include "debug/Debug.h"
 
 #include <stdint.h>
 #include <vector>
@@ -17,10 +19,6 @@
 
 std::vector<char> readFile(const std::string& filename);
 
-std::vector<const char*> getLayers();
-std::vector<const char*> getExtensions(SDL_Window* window);
-std::vector<const char*> getDeviceExtensions(VkPhysicalDevice pDevice, const std::vector<const char*>& requiredExtensions);
-SurfaceSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfaceKHR surface);
 uint32_t findValidMemoryTypeIndex(uint32_t validTypeFlags, VkPhysicalDeviceMemoryProperties pDeviceMemProps, VkMemoryPropertyFlags requiredMemProperties);
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -38,6 +36,12 @@ VkDebugUtilsMessengerCreateInfoEXT populateDebugCreateInfo();
 struct Vertex {
 	glm::vec2 pos;
 	glm::vec3 col;
+};
+
+struct QueueFamilyIndices {
+	std::optional<uint32_t> graphicsFamilyIndex;
+	std::optional<uint32_t> presentationFamilyIndex;
+	std::optional<uint32_t> transferFamilyIndex;
 };
 
 int main(int argc, char* argv[]) {
@@ -63,10 +67,17 @@ int main(int argc, char* argv[]) {
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.apiVersion = VK_API_VERSION_1_0;
 
-		std::vector<const char*> enabledExtensions{getExtensions(window)};
-		std::vector<const char*> enabledLayers{getLayers()};
+		std::vector<const char*> instanceExtensions{getSurfaceExtensions(window)};
+		instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{populateDebugCreateInfo()};
+		std::vector<const char*> enabledExtensions{queryInstanceExtensions(instanceExtensions)};
+		std::vector<const char*> debugExtensions{DEBUG::getInstanceDebugExtensions()};
+		enabledExtensions.reserve(debugExtensions.size());
+		enabledExtensions.insert(std::end(enabledExtensions), std::begin(debugExtensions), std::end(debugExtensions));
+
+		std::vector<const char*> enabledLayers{DEBUG::getInstanceDebugLayers()};
+
+		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{DEBUG::getDebugMessengerCreateInfo()};
 
 		VkInstanceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -82,17 +93,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-
-	PFN_vkCreateDebugUtilsMessengerEXT VK_CreateDebugUtilsMessengerEXT{load_PFK_vkCreateDebugUtilsMessengerEXT(instance)};
-	PFN_vkDestroyDebugUtilsMessengerEXT VK_DestroyDebugUtilsMessengerEXT{load_PFK_vkDestroyDebugUtilsMessengerEXT(instance)};
-
-	VkDebugUtilsMessengerEXT debugMessenger{};
-	{
-		VkDebugUtilsMessengerCreateInfoEXT createInfo{populateDebugCreateInfo()};
-		if(VK_CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-			std::cerr << "could not create debug messenger" << std::endl;
-		}
-	}
+	VkDebugUtilsMessengerEXT debugMessenger{DEBUG::createDebugMessenger(instance)};
 
 	VkSurfaceKHR surface{};
 	{
@@ -158,7 +159,7 @@ int main(int argc, char* argv[]) {
 
 			if (graphicsFamilyIndex.has_value() && presentFamilyIndex.has_value()) {
 
-				std::vector<const char*> tempDeviceExtensions = getDeviceExtensions(pDevice, requiredDeviceExtensions);
+				std::vector<const char*> tempDeviceExtensions{queryDeviceExtensions(pDevice, requiredDeviceExtensions)};
 				if (currentRating > highestRating && !tempDeviceExtensions.empty()) {
 					SurfaceSupportDetails thisDeviceSwapchainSupport{querySwapchainSupport(pDevice, surface)};
 					bool swapchainSupported{
@@ -520,7 +521,6 @@ int main(int argc, char* argv[]) {
 
 	}
 
-
 	std::vector<VkSemaphore> imageAvaliableSemaphores(MAX_FRAMES_IN_FLIGHT);
 	std::vector<VkSemaphore> renderFinishedSemaphores(MAX_FRAMES_IN_FLIGHT);
 	std::vector<VkFence> inFlightFences(MAX_FRAMES_IN_FLIGHT);
@@ -550,6 +550,10 @@ int main(int argc, char* argv[]) {
 	bool windowResized{};
 	bool rendering{true};
 	uint32_t frame{};
+
+	uint32_t framesRendered{};
+	uint32_t firstFrameTime{SDL_GetTicks()};
+
 	while (running) {
 			while (SDL_PollEvent(&e)) {
 				switch (e.type) {
@@ -581,7 +585,6 @@ int main(int argc, char* argv[]) {
 			}
 
 		if (rendering) {
-
 			uint32_t swapchainImageIndex{};
 			{
 				VkResult result {vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex)};
@@ -693,6 +696,13 @@ int main(int argc, char* argv[]) {
 			}
 
 			frame = (frame + 1) % 2;
+			framesRendered++;
+
+			if (SDL_GetTicks() - firstFrameTime >= 1000) {
+				firstFrameTime = SDL_GetTicks();
+				std::cout << "frames renderered: " << framesRendered << " | ms per frame: " << 1.f / framesRendered << std::endl;;
+				framesRendered = 0;
+			}
 		}
 	}
 	vkDeviceWaitIdle(device);
@@ -710,7 +720,7 @@ int main(int argc, char* argv[]) {
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyDevice(device, nullptr);
-	VK_DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+	DEBUG::destroyDebugMessenger(instance, debugMessenger, nullptr);
 	vkDestroyInstance(instance, nullptr);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
@@ -807,37 +817,6 @@ std::vector<const char*> getExtensions(SDL_Window* window) {
 
 	return extensions;
 }
-
-std::vector<const char*> getLayers() {
-	std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
-
-	uint32_t layerCount{};
-	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-	std::vector<VkLayerProperties> avaliableLayers(layerCount);
-	vkEnumerateInstanceLayerProperties(&layerCount, avaliableLayers.data());
-
-	std::vector<const char*> enabledLayers;
-	for (const auto& validationLayer : validationLayers) {
-		auto itt{
-			std::find_if(
-					avaliableLayers.begin(),
-					avaliableLayers.end(),
-					[&](const auto& layer) { return strcmp(validationLayer, layer.layerName) == 0; }
-					)
-		};
-
-		if (itt != avaliableLayers.end()) {
-			enabledLayers.emplace_back(validationLayer);
-		}
-	}
-	if (enabledLayers.size() < validationLayers.size()) {
-		std::cout << "not all validation layers avaliable: " << enabledLayers.size() << " of " << validationLayers.size() << std::endl;
-	}
-
-	return validationLayers;
-}
-
 
 SurfaceSupportDetails querySwapchainSupport(VkPhysicalDevice pDevice, VkSurfaceKHR surface) {
 	SurfaceSupportDetails swapchainDetails{};
