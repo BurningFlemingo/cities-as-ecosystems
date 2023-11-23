@@ -68,7 +68,6 @@ int main(int argc, char* argv[]) {
 		appInfo.apiVersion = VK_API_VERSION_1_0;
 
 		std::vector<const char*> instanceExtensions{getSurfaceExtensions(window)};
-		instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
 		std::vector<const char*> enabledExtensions{queryInstanceExtensions(instanceExtensions)};
 		std::vector<const char*> debugExtensions{DEBUG::getInstanceDebugExtensions()};
