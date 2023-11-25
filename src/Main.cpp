@@ -822,6 +822,11 @@ void copyBuffers(VkDevice device, uint32_t transferQueueFamilyIndex, VkQueue tra
 		}
 	}
 
+	VkFence fence{};
+	VkFenceCreateInfo fenceCreateInfo{};
+	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	vkCreateFence(device, &fenceCreateInfo, nullptr, &fence);
+
 	VkCommandBuffer transferCommandBuffer;
 	{
 		VkCommandBufferAllocateInfo cmdBufferAllocInfo{};
@@ -852,10 +857,11 @@ void copyBuffers(VkDevice device, uint32_t transferQueueFamilyIndex, VkQueue tra
 	bufSubmitInfo.commandBufferCount = 1;
 	bufSubmitInfo.pCommandBuffers = &transferCommandBuffer;
 
-	if (vkQueueSubmit(transferQueue, 1, &bufSubmitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+	if (vkQueueSubmit(transferQueue, 1, &bufSubmitInfo, fence) != VK_SUCCESS) {
 		throw std::runtime_error("could not submit to transfer queue");
 	}
-	vkQueueWaitIdle(transferQueue);
+	vkWaitForFences(device, 1, &fence, VK_TRUE, UINT32_MAX);
 
+	vkDestroyFence(device, fence, nullptr);
 	vkDestroyCommandPool(device, transferPool, nullptr);
 }
