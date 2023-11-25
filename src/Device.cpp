@@ -74,14 +74,17 @@ QueueFamilyIndices queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice
 		}
 	}
 
-	uint32_t transferQueueNoGraphicsIndices{transferQueueIndices & (~graphicsQueueIndices)};
-	if (transferQueueNoGraphicsIndices) {
-		std::optional<uint32_t> indexOfTransferQueue{bitscanforward(transferQueueNoGraphicsIndices)};
-		queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
-	} else {
-		std::optional<uint32_t> indexOfTransferQueue{bitscanforward(graphicsQueueIndices)};
-		queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
-	}
+	// uint32_t transferQueueNoGraphicsIndices{transferQueueIndices & (~graphicsQueueIndices)};
+	// if (transferQueueNoGraphicsIndices) {
+	// 	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(transferQueueNoGraphicsIndices)};
+	// 	queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
+	// } else {
+	// 	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(graphicsQueueIndices)};
+	// 	queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
+	// }
+	
+	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(graphicsQueueIndices)};
+	queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
 
 	uint32_t graphicsPresentationQueue{graphicsQueueIndices & presentationQueueIndices};
 	std::optional<uint32_t> indexOfBestCaseQueue{bitscanforward(graphicsPresentationQueue)};

@@ -18,7 +18,7 @@
 #include <limits.h>
 #include <fstream>
 #include <array>
-#include <vulkan/vulkan_core.h>
+#include <unordered_set>
 
 std::vector<char> readFile(const std::string& filename);
 
@@ -91,11 +91,11 @@ int main(int argc, char* argv[]) {
 	{
 		std::vector<const char*> requiredDeviceExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-		uint32_t nPhysicalDevices{};
-		vkEnumeratePhysicalDevices(instance, &nPhysicalDevices, nullptr);
+		uint32_t physicalDeviceCount{};
+		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
 
-		std::vector<VkPhysicalDevice> physicalDevices(nPhysicalDevices);
-		vkEnumeratePhysicalDevices(instance, &nPhysicalDevices, physicalDevices.data());
+		std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data());
 
 		int highestRating{-1};
 		for (const auto& pDevice : physicalDevices) {
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
 			};
 
 			if (!swapchainSupported) {
-				//continue;
+				continue;
 			}
 
 			int currentRating{};
@@ -146,12 +146,11 @@ int main(int argc, char* argv[]) {
 			}
 
 			if (currentRating > highestRating) {
-				if (swapchainSupported) {
-					deviceExtensions = testDeviceExtensions;
-					physicalDevice = pDevice;
-					surfaceSupportDetails = thisDeviceSurfaceSupportDetails;
-					queueFamilyIndices = testQueueFamilyIndices;
-				}
+				highestRating = currentRating;
+				deviceExtensions = testDeviceExtensions;
+				physicalDevice = pDevice;
+				surfaceSupportDetails = thisDeviceSurfaceSupportDetails;
+				queueFamilyIndices = testQueueFamilyIndices;
 			}
 		}
 	}
@@ -163,7 +162,7 @@ int main(int argc, char* argv[]) {
 		VkDeviceQueueCreateInfo graphicsPresentQueueCreateInfo{};
 		graphicsPresentQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		graphicsPresentQueueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamilyIndex.value();
-		graphicsPresentQueueCreateInfo.queueCount = 2;
+		graphicsPresentQueueCreateInfo.queueCount = 1;
 		graphicsPresentQueueCreateInfo.pQueuePriorities = queuePriority;
 
 		VkDeviceQueueCreateInfo transferQueueCreateInfo{};
@@ -172,13 +171,12 @@ int main(int argc, char* argv[]) {
 		transferQueueCreateInfo.queueCount = 1;
 		transferQueueCreateInfo.pQueuePriorities = queuePriority;
 
-		VkDeviceQueueCreateInfo queuesToCreate[2];
+		VkDeviceQueueCreateInfo queuesToCreate[1];
 		queuesToCreate[0] = graphicsPresentQueueCreateInfo;
-		queuesToCreate[1] = transferQueueCreateInfo;
 
 		VkDeviceCreateInfo deviceCreateInfo{};
 		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceCreateInfo.queueCreateInfoCount = 2;
+		deviceCreateInfo.queueCreateInfoCount = 1;
 		deviceCreateInfo.pQueueCreateInfos = queuesToCreate;
 		deviceCreateInfo.pEnabledFeatures = nullptr;
 		deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
@@ -190,8 +188,8 @@ int main(int argc, char* argv[]) {
 	VkQueue graphicsPresentQueue{};
 	vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamilyIndex.value(), 0, &graphicsPresentQueue);
 
-	VkQueue transferQueue{};
-	vkGetDeviceQueue(device, queueFamilyIndices.transferFamilyIndex.value(), 0, &transferQueue);
+	// VkQueue transferQueue{};
+	// vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamilyIndex.value(), 0, &transferQueue);
 
 	Swapchain swapchain{
 		createSwapchain(
@@ -295,7 +293,7 @@ int main(int argc, char* argv[]) {
 				&vertexBuffer, &vertexBufferMemory
 			);
 
-		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), transferQueue, stagingBuffer, vertexBuffer, bufferSize);
+		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), graphicsPresentQueue, stagingBuffer, vertexBuffer, bufferSize);
 		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -330,7 +328,7 @@ int main(int argc, char* argv[]) {
 				&indexBuffer, &indexBufferMemory
 			);
 
-		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), transferQueue, stagingBuffer, indexBuffer, bufferSize);
+		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), graphicsPresentQueue, stagingBuffer, indexBuffer, bufferSize);
 		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -495,17 +493,6 @@ int main(int argc, char* argv[]) {
 		createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass)
 	};
 
-	VkCommandPool transferCommandPool{};
-	{
-		VkCommandPoolCreateInfo transferCommandPoolCreateInfo{};
-		transferCommandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		transferCommandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		transferCommandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.transferFamilyIndex.value();
-
-		vkCreateCommandPool(device, &transferCommandPoolCreateInfo, nullptr, &transferCommandPool);
-	}
-
-
 	VkCommandPool commandPool{};
 	{
 		VkCommandPoolCreateInfo commandPoolCreateInfo{};
@@ -518,33 +505,18 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	uint32_t MAX_FRAMES_IN_FLIGHT{2};
+	uint32_t MAX_FRAMES_IN_FLIGHT{1};
 
 	std::vector<VkCommandBuffer> commandBuffers(MAX_FRAMES_IN_FLIGHT);
 	{
 		VkCommandBufferAllocateInfo commandBufferAllocInfo{};
 		commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		commandBufferAllocInfo.commandPool = commandPool;
-		commandBufferAllocInfo.commandBufferCount = 1;
-		commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-
-		for (int i{}; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			if (vkAllocateCommandBuffers(device, &commandBufferAllocInfo, &commandBuffers[i]) != VK_SUCCESS) {
-				std::cerr << "could not create command buffers" << std::endl;
-			}
-		}
-	}
-
-	std::vector<VkCommandBuffer> transferCommandBuffers(MAX_FRAMES_IN_FLIGHT);
-	{
-		VkCommandBufferAllocateInfo commandBufferAllocInfo{};
-		commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		commandBufferAllocInfo.commandPool = transferCommandPool;
 		commandBufferAllocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+		commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-		if (vkAllocateCommandBuffers(device, &commandBufferAllocInfo, transferCommandBuffers.data()) != VK_SUCCESS) {
-				std::cerr << "could not create command buffers" << std::endl;
+		if (vkAllocateCommandBuffers(device, &commandBufferAllocInfo, commandBuffers.data()) != VK_SUCCESS) {
+			std::cerr << "could not create command buffers" << std::endl;
 		}
 	}
 
@@ -724,7 +696,7 @@ int main(int argc, char* argv[]) {
 				vkQueuePresentKHR(graphicsPresentQueue, &presentInfo);
 			}
 
-			frame = (frame + 1) % 2;
+			frame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;
 			framesRendered++;
 
 			if (SDL_GetTicks() - firstFrameTime >= 1000) {
@@ -746,7 +718,6 @@ int main(int argc, char* argv[]) {
 	vkDestroyBuffer(device, indexBuffer, nullptr);
 	vkFreeMemory(device, indexBufferMemory, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
-	vkDestroyCommandPool(device, transferCommandPool, nullptr);
 	vkDestroyPipeline(device, pipeline, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);

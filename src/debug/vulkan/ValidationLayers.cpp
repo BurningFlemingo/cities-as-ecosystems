@@ -1,4 +1,5 @@
 #include "debug/vulkan/ValidationLayers.h"
+
 #ifdef DEBUG_VALIDATION_LAYERS
 
 #include "Extensions.h"
@@ -6,6 +7,7 @@
 #include <vulkan/vulkan.h>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 
 namespace DEBUG {
