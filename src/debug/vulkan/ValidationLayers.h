@@ -3,24 +3,6 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-#undef DEBUG_INLINE
-#undef DEBUG_STUB
-#undef DEBUG_STUB_RET
-
-#define DEBUG_INLINE  inline
-#define DEBUG_STUB {}
-#define DEBUG_STUB_RET { return {}; }
-
-#ifdef DEBUG_VALIDATION_LAYERS
-	#undef DEBUG_INLINE
-	#undef DEBUG_STUB
-	#undef DEBUG_STUB_RET
-
-	#define DEBUG_INLINE 
-	#define DEBUG_STUB 
-	#define DEBUG_STUB_RET
-#endif
-
 namespace DEBUG {
 #ifdef DEBUG_VALIDATION_LAYERS
 
