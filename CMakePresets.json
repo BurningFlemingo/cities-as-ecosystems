@@ -71,7 +71,7 @@
             "displayName": "Windows Internal",
             "inherits": "windows-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
         },
         {

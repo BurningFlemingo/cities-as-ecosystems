@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
  std::vector<const char*> findExtensions(
 		 const std::vector<VkExtensionProperties>& avaliableExtensionProperties,
