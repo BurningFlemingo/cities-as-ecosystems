@@ -609,7 +609,7 @@ int main(int argc, char* argv[]) {
 				vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX);
 
 				VkResult result {vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex)};
-				bool swapchainIsDirty{result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResized};
+				bool swapchainIsDirty{result == VK_ERROR_OUT_OF_DATE_KHR || windowResized};
 
 				if (swapchainIsDirty) {
 					windowResized = false;
@@ -623,12 +623,11 @@ int main(int argc, char* argv[]) {
 					swapchainImageViews = createSwapchainImageViews(device, swapchain);
 					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass);
 
-					result = vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex);
+					continue;
 				}
 				if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 					std::cerr << "could not get image from swapchain" << std::endl;
 				}
-
 			}
 
 			vkResetFences(device, 1, &inFlightFences[frame]);
@@ -714,7 +713,26 @@ int main(int argc, char* argv[]) {
 				presentInfo.pSwapchains = swapchains;
 				presentInfo.pImageIndices = &swapchainImageIndex;
 
-				vkQueuePresentKHR(presentQueue, &presentInfo);
+				VkResult result{vkQueuePresentKHR(presentQueue, &presentInfo)};
+				bool swapchainIsDirty{result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResized};
+
+				if (swapchainIsDirty) {
+					windowResized = false;
+					VkSwapchainKHR oldSwapchainHandle{swapchain.handle};
+					swapchain = recreateSwapchain(device, window, surface, queryDeviceSurfaceSupportDetails(physicalDevice, surface), oldSwapchainHandle);
+
+					vkDeviceWaitIdle(device);
+					destroySwapchain(device, oldSwapchainHandle, nullptr, nullptr);
+
+					destroySwapchainImageViews(device, &swapchainImageViews, &swapchainFramebuffers);
+					swapchainImageViews = createSwapchainImageViews(device, swapchain);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain.extent, renderPass);
+
+					continue;
+				}
+				if (result != VK_SUCCESS) {
+					std::cerr << "could not present image" << std::endl;
+				}
 			}
 
 			frame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;
