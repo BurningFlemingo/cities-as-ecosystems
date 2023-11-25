@@ -46,7 +46,6 @@ Swapchain createSwapchain(
 
 	SwapchainInfo swapchainInfo{fillSwapchainInfo(window, surfaceSupportDetails)};
 
-
 	VkSwapchainCreateInfoKHR swapchainCreateInfo{};
 	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchainCreateInfo.presentMode = swapchainInfo.presentMode;

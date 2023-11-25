@@ -238,10 +238,11 @@ int main(int argc, char* argv[]) {
 		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
 		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, 
-
-		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{0.5f, 0.5f}, {0.0f, 1.0f, 1.0f}}, 
-		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, 
+	};
+
+	std::vector<uint16_t> indices = {
+		0, 1, 2, 1, 3, 2
 	};
 
 	VkVertexInputBindingDescription vertexBindingDescription{};
@@ -293,6 +294,41 @@ int main(int argc, char* argv[]) {
 			);
 
 		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), transferQueue, stagingBuffer, vertexBuffer, bufferSize);
+		
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+	}
+
+	VkBuffer indexBuffer{};
+	VkDeviceMemory indexBufferMemory{};
+	{
+		VkDeviceMemory stagingBufferMemory{};
+		VkBuffer stagingBuffer{};
+
+		VkDeviceSize bufferSize{sizeof(indices[0]) * indices.size()};
+
+		createBuffer(
+				device, physicalDevice,
+				bufferSize,
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&stagingBuffer, &stagingBufferMemory
+			);
+
+		void* data;
+		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, indices.data(), bufferSize);
+		vkUnmapMemory(device, stagingBufferMemory);
+
+		createBuffer(
+				device, physicalDevice,
+				bufferSize,
+				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				&indexBuffer, &indexBufferMemory
+			);
+
+		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), transferQueue, stagingBuffer, indexBuffer, bufferSize);
 		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -633,6 +669,7 @@ int main(int argc, char* argv[]) {
 				VkDeviceSize offsets[] = {0};
 
 				vkCmdBindVertexBuffers(commandBuffers[frame], 0, 1, vertexBuffers, offsets);
+				vkCmdBindIndexBuffer(commandBuffers[frame], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 	
 				VkViewport viewport{};
 				viewport.height = static_cast<float>(swapchain.extent.height);
@@ -646,7 +683,8 @@ int main(int argc, char* argv[]) {
 				vkCmdSetScissor(commandBuffers[frame], 0, 1, &scissor);
 			}
 
-			vkCmdDraw(commandBuffers[frame], vertices.size(), 1, 0, 0);
+			vkCmdDrawIndexed(commandBuffers[frame], indices.size(), 1, 0, 0, 0);
+
 			vkCmdEndRenderPass(commandBuffers[frame]);
 			if (vkEndCommandBuffer(commandBuffers[frame]) != VK_SUCCESS) {
 				std::cerr << "could not record command buffer" << std::endl;
@@ -703,6 +741,8 @@ int main(int argc, char* argv[]) {
 	destroySwapchain(device, swapchain.handle, &swapchainImageViews, &swapchainFramebuffers);
 	vkDestroyBuffer(device, vertexBuffer, nullptr);
 	vkFreeMemory(device, vertexBufferMemory, nullptr);
+	vkDestroyBuffer(device, indexBuffer, nullptr);
+	vkFreeMemory(device, indexBufferMemory, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDestroyCommandPool(device, transferCommandPool, nullptr);
 	vkDestroyPipeline(device, pipeline, nullptr);

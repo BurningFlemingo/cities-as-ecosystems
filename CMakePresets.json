@@ -55,7 +55,7 @@
             "displayName": "Windows Debug",
             "inherits": "windows-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
@@ -72,7 +72,6 @@
             "inherits": "windows-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vendor/vcpkg/scripts/buildsystems/vcpkg.cmake"
             }
         },
         {
