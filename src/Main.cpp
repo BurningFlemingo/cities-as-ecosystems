@@ -160,10 +160,17 @@ int main(int argc, char* argv[]) {
 		std::vector<VkDeviceQueueCreateInfo> queuesToCreate{};
 		queuesToCreate.reserve(nQueueFamilyIndices);
 		for (int i{}; i < nQueueFamilyIndices; i++) {
+			uint32_t queueCount{};
+			for (const auto& family : queueFamilyIndices.uniqueIndices[i]) {
+				if (family == QueueFamily::presentation) {
+					continue;
+				}
+				queueCount++;
+			}
 			VkDeviceQueueCreateInfo queueCreateInfo{};
 			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 			queueCreateInfo.queueFamilyIndex = i;
-			queueCreateInfo.queueCount = queueFamilyIndices.uniqueIndices[i].size();
+			queueCreateInfo.queueCount = queueCount;
 			queueCreateInfo.pQueuePriorities = queuePriority;
 
 			queuesToCreate.emplace_back(queueCreateInfo);
@@ -171,7 +178,7 @@ int main(int argc, char* argv[]) {
 
 		VkDeviceCreateInfo deviceCreateInfo{};
 		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceCreateInfo.queueCreateInfoCount = queueFamilyIndices.uniqueIndices.size();
+		deviceCreateInfo.queueCreateInfoCount = queuesToCreate.size();
 		deviceCreateInfo.pQueueCreateInfos = queuesToCreate.data();
 		deviceCreateInfo.pEnabledFeatures = nullptr;
 		deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
