@@ -1,3 +1,5 @@
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE // opengl depth is -1:1, vulkan is 0:1, this makes it 0:1
+
 #include <iostream>
 #include <SDL2/SDL_vulkan.h>
 #include <SDL2/SDL.h>
