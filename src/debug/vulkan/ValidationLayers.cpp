@@ -1,9 +1,12 @@
-#include "debug/include/vulkan/ValidationLayers.h"
+#include "debug/vulkan/ValidationLayers.h"
+#ifdef DEBUG_VALIDATION_LAYERS
+
 #include "Extensions.h"
 
 #include <vulkan/vulkan.h>
 #include <sstream>
 #include <iostream>
+
 
 namespace DEBUG {
 
@@ -131,3 +134,5 @@ std::vector<const char*> findLayers(
 }
 
 }
+
+#endif

@@ -21,14 +21,12 @@ Swapchain createSwapchain(
 		VkDevice device,
 		SDL_Window* window,
 		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails, 
-		const std::vector<uint32_t>& queueFamilyIndices);
+		const SurfaceSupportDetails& surfaceSupportDetails);
 
 Swapchain recreateSwapchain(VkDevice device,
 		SDL_Window* window,
 		VkSurfaceKHR surface,
 		const SurfaceSupportDetails& surfaceSupportDetails, 
-		const std::vector<uint32_t>& queueFamilyIndices,
 		VkSwapchainKHR oldSwapchainHandle);
 
 std::vector<VkImageView> createSwapchainImageViews(

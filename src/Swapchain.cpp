@@ -40,8 +40,7 @@ Swapchain createSwapchain(
 		VkDevice device,
 		SDL_Window* window,
 		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails,
-		const std::vector<uint32_t>& queueFamilyIndices) {
+		const SurfaceSupportDetails& surfaceSupportDetails) {
 
 	Swapchain swapchain{};
 
@@ -58,9 +57,7 @@ Swapchain createSwapchain(
 	swapchainCreateInfo.minImageCount = swapchainInfo.imageCount;
 	swapchainCreateInfo.imageArrayLayers = 1;
 	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapchainCreateInfo.queueFamilyIndexCount = queueFamilyIndices.size();
-	swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	swapchainCreateInfo.clipped = VK_TRUE;
 	swapchainCreateInfo.preTransform = surfaceSupportDetails.surfaceCapabilities.currentTransform;
 	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -81,7 +78,6 @@ Swapchain recreateSwapchain(VkDevice device,
 		SDL_Window* window,
 		VkSurfaceKHR surface,
 		const SurfaceSupportDetails& surfaceSupportDetails, 
-		const std::vector<uint32_t>& queueFamilyIndices,
 		VkSwapchainKHR oldSwapchainHandle) {
 	Swapchain swapchain{};
 
@@ -97,9 +93,7 @@ Swapchain recreateSwapchain(VkDevice device,
 	swapchainCreateInfo.minImageCount = swapchainInfo.imageCount;
 	swapchainCreateInfo.imageArrayLayers = 1;
 	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapchainCreateInfo.queueFamilyIndexCount = queueFamilyIndices.size();
-	swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	swapchainCreateInfo.clipped = VK_TRUE;
 	swapchainCreateInfo.preTransform = surfaceSupportDetails.surfaceCapabilities.currentTransform;
 	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;

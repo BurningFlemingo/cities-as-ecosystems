@@ -43,35 +43,31 @@ set(SRC_FILES
 	${SRC_DIR}/Main.cpp
 	${SRC_DIR}/Swapchain.cpp
 	${SRC_DIR}/Extensions.cpp
-	${SRC_DIR}/Device.cpp)
-
-if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-	message("building debug implementations")
-	set(SRC_FILES
-		${SRC_FILES}
-		${SRC_DIR}/debug/impl/vulkan/ValidationLayers.cpp)
-else()
-	message("ignoring debug implementations")
-	set(SRC_FILES
-		${SRC_FILES}
-		${SRC_DIR}/debug/stub/vulkan/ValidationLayers.cpp)
-endif()
-
+	${SRC_DIR}/Device.cpp
+	${SRC_DIR}/debug/vulkan/ValidationLayers.cpp)
 
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
 target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
 target_include_directories(CitiesAsEcosystems PRIVATE ${SRC_DIR})
 
-add_custom_command(
-    OUTPUT "${CMAKE_BINARY_DIR}/compile_commands.json"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_BINARY_DIR}/compile_commands.json"
-        "${CMAKE_SOURCE_DIR}/src/"
-    DEPENDS target_that_generates_compile_commands
-    COMMENT "Copying compile_commands.json to src directory"
-    VERBATIM
-)
+if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+	target_compile_definitions(CitiesAsEcosystems
+		PRIVATE
+		DEBUG_VALIDATION_LAYERS
+	)
+else()
+endif()
+
+# add_custom_command(
+# 	TARGET CitiesAsEcosystems POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#         "${CMAKE_BINARY_DIR}/compile_commands.json"
+#         "${CMAKE_SOURCE_DIR}/src/"
+#     DEPENDS target_that_generates_compile_commands
+#     COMMENT "Copying compile_commands.json to src directory"
+#     VERBATIM
+# )
 
 # currently no assets
 # add_custom_command(
