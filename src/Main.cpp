@@ -606,6 +606,8 @@ int main(int argc, char* argv[]) {
 		if (rendering) {
 			uint32_t swapchainImageIndex{};
 			{
+				vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX);
+
 				VkResult result {vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvaliableSemaphores[frame], VK_NULL_HANDLE, &swapchainImageIndex)};
 				bool swapchainIsDirty{result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || windowResized};
 
@@ -629,7 +631,6 @@ int main(int argc, char* argv[]) {
 
 			}
 
-			vkWaitForFences(device, 1, &inFlightFences[frame], VK_TRUE, UINT64_MAX);
 			vkResetFences(device, 1, &inFlightFences[frame]);
 			vkResetCommandBuffer(commandBuffers[frame], 0);
 			{
