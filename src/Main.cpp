@@ -103,13 +103,10 @@ int main(int argc, char* argv[]) {
 
 			vkGetPhysicalDeviceProperties(pDevice, &pDeviceProps);
 
-			QueueFamilyIndices testQueueFamilyIndices{queryDeviceQueueFamilyIndices(pDevice, surface)};
+			QueueInfo queueInfo{queryDeviceQueueFamilyIndices(pDevice, surface)};
+			QueueFamilyIndices testQueueFamilyIndices{selectDeviceQueueFamilyIndices(queueInfo)};
 
-			if (
-					!testQueueFamilyIndices.graphicsFamilyIndex.has_value() ||
-					!testQueueFamilyIndices.presentationFamilyIndex.has_value() ||
-					!testQueueFamilyIndices.transferFamilyIndex.has_value()
-				) {
+			if (!testQueueFamilyIndices.uniqueIndices.size()) {
 				continue;
 			}
 
@@ -157,27 +154,25 @@ int main(int argc, char* argv[]) {
 
 	VkDevice device{};
 	{
-		const float queuePriority[2] = {1.0f, 1.0f};
+		const float queuePriority[3] = {1.0f, 1.0f, 1.0f};
+		size_t nQueueFamilyIndices{queueFamilyIndices.uniqueIndices.size()};
 
-		VkDeviceQueueCreateInfo graphicsPresentQueueCreateInfo{};
-		graphicsPresentQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		graphicsPresentQueueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamilyIndex.value();
-		graphicsPresentQueueCreateInfo.queueCount = 1;
-		graphicsPresentQueueCreateInfo.pQueuePriorities = queuePriority;
+		std::vector<VkDeviceQueueCreateInfo> queuesToCreate{};
+		queuesToCreate.reserve(nQueueFamilyIndices);
+		for (int i{}; i < nQueueFamilyIndices; i++) {
+			VkDeviceQueueCreateInfo queueCreateInfo{};
+			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+			queueCreateInfo.queueFamilyIndex = i;
+			queueCreateInfo.queueCount = queueFamilyIndices.uniqueIndices[i].size();
+			queueCreateInfo.pQueuePriorities = queuePriority;
 
-		VkDeviceQueueCreateInfo transferQueueCreateInfo{};
-		transferQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		transferQueueCreateInfo.queueFamilyIndex = queueFamilyIndices.transferFamilyIndex.value();
-		transferQueueCreateInfo.queueCount = 1;
-		transferQueueCreateInfo.pQueuePriorities = queuePriority;
-
-		VkDeviceQueueCreateInfo queuesToCreate[1];
-		queuesToCreate[0] = graphicsPresentQueueCreateInfo;
+			queuesToCreate.emplace_back(queueCreateInfo);
+		}
 
 		VkDeviceCreateInfo deviceCreateInfo{};
 		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceCreateInfo.queueCreateInfoCount = 1;
-		deviceCreateInfo.pQueueCreateInfos = queuesToCreate;
+		deviceCreateInfo.queueCreateInfoCount = queueFamilyIndices.uniqueIndices.size();
+		deviceCreateInfo.pQueueCreateInfos = queuesToCreate.data();
 		deviceCreateInfo.pEnabledFeatures = nullptr;
 		deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
 		deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -185,11 +180,29 @@ int main(int argc, char* argv[]) {
 		vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
 	}
 
-	VkQueue graphicsPresentQueue{};
-	vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamilyIndex.value(), 0, &graphicsPresentQueue);
+	VkQueue graphicsQueue{};
+	VkQueue presentQueue{};
+	VkQueue transferQueue{};
+	for (auto indexMap : queueFamilyIndices.uniqueIndices) {
+		for (int i{}; i < indexMap.second.size(); i++) {
+			QueueFamily family{indexMap.second[i]};
+			uint32_t queueFamilyIndex{indexMap.first};
 
-	// VkQueue transferQueue{};
-	// vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamilyIndex.value(), 0, &transferQueue);
+			switch (family) {
+				case QueueFamily::graphics:
+					vkGetDeviceQueue(device, queueFamilyIndex, i, &graphicsQueue);
+					break;
+				case QueueFamily::presentation:
+					break;
+				case QueueFamily::transfer:
+					vkGetDeviceQueue(device, queueFamilyIndex, i, &transferQueue);
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	presentQueue = graphicsQueue;
 
 	Swapchain swapchain{
 		createSwapchain(
@@ -293,7 +306,7 @@ int main(int argc, char* argv[]) {
 				&vertexBuffer, &vertexBufferMemory
 			);
 
-		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), graphicsPresentQueue, stagingBuffer, vertexBuffer, bufferSize);
+		copyBuffers(device, queueFamilyIndices.familyToIndex[QueueFamily::transfer], transferQueue, stagingBuffer, vertexBuffer, bufferSize);
 		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -328,7 +341,7 @@ int main(int argc, char* argv[]) {
 				&indexBuffer, &indexBufferMemory
 			);
 
-		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), graphicsPresentQueue, stagingBuffer, indexBuffer, bufferSize);
+		copyBuffers(device, queueFamilyIndices.familyToIndex[QueueFamily::transfer], transferQueue, stagingBuffer, indexBuffer, bufferSize);
 		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -498,7 +511,7 @@ int main(int argc, char* argv[]) {
 		VkCommandPoolCreateInfo commandPoolCreateInfo{};
 		commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamilyIndex.value();
+		commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.familyToIndex[QueueFamily::graphics];
 
 		if (vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &commandPool) != VK_SUCCESS) {
 			std::cerr << "could not create command pool" << std::endl;
@@ -679,7 +692,7 @@ int main(int argc, char* argv[]) {
 				submitInfo.pWaitSemaphores = waitSemaphores;
 				submitInfo.pWaitDstStageMask = waitStages;
 
-				if (vkQueueSubmit(graphicsPresentQueue, 1, &submitInfo, inFlightFences[frame]) != VK_SUCCESS) {
+				if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frame]) != VK_SUCCESS) {
 					std::cout << "could not submit draw command buffer" << std::endl;
 				}
 
@@ -693,7 +706,7 @@ int main(int argc, char* argv[]) {
 				presentInfo.pSwapchains = swapchains;
 				presentInfo.pImageIndices = &swapchainImageIndex;
 
-				vkQueuePresentKHR(graphicsPresentQueue, &presentInfo);
+				vkQueuePresentKHR(presentQueue, &presentInfo);
 			}
 
 			frame = (frame + 1) % MAX_FRAMES_IN_FLIGHT;

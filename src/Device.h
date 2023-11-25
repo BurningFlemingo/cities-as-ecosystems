@@ -5,6 +5,15 @@
 #include <vector>
 #include <optional>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <array>
+
+enum class QueueFamily : uint32_t {
+	graphics, 
+	presentation, 
+	transfer
+};
 
 struct SurfaceSupportDetails {
 	VkSurfaceCapabilitiesKHR surfaceCapabilities{};
@@ -13,11 +22,15 @@ struct SurfaceSupportDetails {
 };
 
 struct QueueFamilyIndices {
-	std::optional<uint32_t> graphicsFamilyIndex;
-	std::optional<uint32_t> presentationFamilyIndex;
-	std::optional<uint32_t> transferFamilyIndex;
+	std::unordered_map<QueueFamily, uint32_t> familyToIndex{};
+	std::unordered_map<uint32_t, std::vector<QueueFamily>> uniqueIndices{};
+};
+
+struct QueueInfo {
+	std::unordered_map<QueueFamily, uint32_t> packedQueueFamilyIndices{};
+	std::unordered_map<uint32_t, uint32_t> nQueueAtIndex;
 };
 
 SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-QueueFamilyIndices queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-std::tuple<int, int> findSuitablePhysicalDevice();
+QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueFamilyIndices);

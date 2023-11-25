@@ -34,7 +34,7 @@ SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physical
 }
 
 std::optional<uint32_t> bitscanforward(uint32_t val) {
-	constexpr uint32_t bitsInUInt{32};
+	constexpr uint32_t bitsInUInt{sizeof(val) * 8};
 	for (int i{}; i < bitsInUInt; i++) {
 		if (val & 1) {
 			return i;
@@ -45,8 +45,9 @@ std::optional<uint32_t> bitscanforward(uint32_t val) {
 	return {};
 }
 
-QueueFamilyIndices queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
-	QueueFamilyIndices queueFamilyIndices{};
+// a map is used instaed of a vector for simplicity, change if it becomes a bottleneck
+QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
+	QueueInfo queueInfo{};
 
 	uint32_t queueFamilyPropCount{};
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropCount, nullptr);
@@ -72,32 +73,52 @@ QueueFamilyIndices queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice
 		if (queueFamilyProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT){
 			transferQueueIndices |= 1 << i;
 		}
+		queueInfo.nQueueAtIndex[i] = queueFamilyProps[i].queueCount;
 	}
 
-	// uint32_t transferQueueNoGraphicsIndices{transferQueueIndices & (~graphicsQueueIndices)};
-	// if (transferQueueNoGraphicsIndices) {
-	// 	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(transferQueueNoGraphicsIndices)};
-	// 	queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
-	// } else {
-	// 	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(graphicsQueueIndices)};
-	// 	queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
-	// }
-	
-	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(graphicsQueueIndices)};
-	queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
+	queueInfo.packedQueueFamilyIndices[QueueFamily::graphics] = graphicsQueueIndices;
+	queueInfo.packedQueueFamilyIndices[QueueFamily::presentation] = presentationQueueIndices;
+	queueInfo.packedQueueFamilyIndices[QueueFamily::transfer] = transferQueueIndices;
 
-	uint32_t graphicsPresentationQueue{graphicsQueueIndices & presentationQueueIndices};
-	std::optional<uint32_t> indexOfBestCaseQueue{bitscanforward(graphicsPresentationQueue)};
-	if (indexOfBestCaseQueue.has_value()) {
-		queueFamilyIndices.graphicsFamilyIndex = indexOfBestCaseQueue.value();
-		queueFamilyIndices.presentationFamilyIndex = indexOfBestCaseQueue.value();
+	return queueInfo;
+}
+
+QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueInfo) {
+	const uint32_t& graphicsQueueIndices{queueInfo.packedQueueFamilyIndices.at(QueueFamily::graphics)};
+	const uint32_t& presentationQueueIndices{queueInfo.packedQueueFamilyIndices.at(QueueFamily::presentation)};
+	const uint32_t& transferQueueIndices{queueInfo.packedQueueFamilyIndices.at(QueueFamily::transfer)};
+
+	QueueFamilyIndices queueFamilyIndices{};
+
+	uint32_t bestCaseGraphicsPresentationIndices{graphicsQueueIndices & presentationQueueIndices};
+
+	uint32_t graphicsIndex{};
+	uint32_t presentationIndex{};
+
+	if (bestCaseGraphicsPresentationIndices) {
+		graphicsIndex = bitscanforward(bestCaseGraphicsPresentationIndices).value();
+		presentationIndex = graphicsIndex;
 	} else {
-		std::optional<uint32_t> indexOfGraphicsQueue{bitscanforward(graphicsQueueIndices)};
-		queueFamilyIndices.graphicsFamilyIndex = indexOfGraphicsQueue;
-		
-		std::optional<uint32_t> indexOfPresentationQueue{bitscanforward(presentationQueueIndices)};
-		queueFamilyIndices.presentationFamilyIndex = indexOfPresentationQueue;
+		graphicsIndex = bitscanforward(graphicsQueueIndices).value();
+		presentationIndex = bitscanforward(presentationQueueIndices).value();
 	}
+
+	uint32_t bestTransferIndices{transferQueueIndices & (~graphicsQueueIndices)};
+	uint32_t transferIndex{};
+
+	if (bestTransferIndices) {
+		transferIndex = bitscanforward(bestTransferIndices).value();
+	} else {
+		transferIndex = graphicsIndex;
+	}
+
+	queueFamilyIndices.familyToIndex[QueueFamily::graphics] = graphicsIndex;
+	queueFamilyIndices.familyToIndex[QueueFamily::presentation] = presentationIndex;
+	queueFamilyIndices.familyToIndex[QueueFamily::transfer] = transferIndex;
+
+	queueFamilyIndices.uniqueIndices[graphicsIndex].emplace_back(QueueFamily::graphics);
+	queueFamilyIndices.uniqueIndices[presentationIndex].emplace_back(QueueFamily::presentation);
+	queueFamilyIndices.uniqueIndices[transferIndex].emplace_back(QueueFamily::transfer);
 
 	return queueFamilyIndices;
 }
