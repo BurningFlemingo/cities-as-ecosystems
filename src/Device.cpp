@@ -75,9 +75,12 @@ QueueFamilyIndices queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice
 	}
 
 	uint32_t transferQueueNoGraphicsIndices{transferQueueIndices & (~graphicsQueueIndices)};
-	std::optional<uint32_t> indexOfTransferQueue{bitscanforward(transferQueueNoGraphicsIndices)};
-	if (indexOfTransferQueue.has_value()) {
-		queueFamilyIndices.transferNoGraphicsFamilyIndex = indexOfTransferQueue.value();
+	if (transferQueueNoGraphicsIndices) {
+		std::optional<uint32_t> indexOfTransferQueue{bitscanforward(transferQueueNoGraphicsIndices)};
+		queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
+	} else {
+		std::optional<uint32_t> indexOfTransferQueue{bitscanforward(graphicsQueueIndices)};
+		queueFamilyIndices.transferFamilyIndex = indexOfTransferQueue.value();
 	}
 
 	uint32_t graphicsPresentationQueue{graphicsQueueIndices & presentationQueueIndices};
@@ -91,7 +94,6 @@ QueueFamilyIndices queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice
 		
 		std::optional<uint32_t> indexOfPresentationQueue{bitscanforward(presentationQueueIndices)};
 		queueFamilyIndices.presentationFamilyIndex = indexOfPresentationQueue;
-
 	}
 
 	return queueFamilyIndices;

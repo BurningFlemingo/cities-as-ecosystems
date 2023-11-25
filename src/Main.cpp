@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 			if (
 					!testQueueFamilyIndices.graphicsFamilyIndex.has_value() ||
 					!testQueueFamilyIndices.presentationFamilyIndex.has_value() ||
-					!testQueueFamilyIndices.transferNoGraphicsFamilyIndex.has_value()
+					!testQueueFamilyIndices.transferFamilyIndex.has_value()
 				) {
 				continue;
 			}
@@ -166,7 +166,7 @@ int main(int argc, char* argv[]) {
 
 		VkDeviceQueueCreateInfo transferQueueCreateInfo{};
 		transferQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		transferQueueCreateInfo.queueFamilyIndex = queueFamilyIndices.transferNoGraphicsFamilyIndex.value();
+		transferQueueCreateInfo.queueFamilyIndex = queueFamilyIndices.transferFamilyIndex.value();
 		transferQueueCreateInfo.queueCount = 1;
 		transferQueueCreateInfo.pQueuePriorities = queuePriority;
 
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
 	vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamilyIndex.value(), 0, &graphicsPresentQueue);
 
 	VkQueue transferQueue{};
-	vkGetDeviceQueue(device, queueFamilyIndices.transferNoGraphicsFamilyIndex.value(), 0, &transferQueue);
+	vkGetDeviceQueue(device, queueFamilyIndices.transferFamilyIndex.value(), 0, &transferQueue);
 
 	Swapchain swapchain{
 		createSwapchain(
@@ -292,7 +292,7 @@ int main(int argc, char* argv[]) {
 				&vertexBuffer, &vertexBufferMemory
 			);
 
-		copyBuffers(device, queueFamilyIndices.transferNoGraphicsFamilyIndex.value(), transferQueue, stagingBuffer, vertexBuffer, bufferSize);
+		copyBuffers(device, queueFamilyIndices.transferFamilyIndex.value(), transferQueue, stagingBuffer, vertexBuffer, bufferSize);
 		
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -462,7 +462,7 @@ int main(int argc, char* argv[]) {
 		VkCommandPoolCreateInfo transferCommandPoolCreateInfo{};
 		transferCommandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		transferCommandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		transferCommandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.transferNoGraphicsFamilyIndex.value();
+		transferCommandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.transferFamilyIndex.value();
 
 		vkCreateCommandPool(device, &transferCommandPoolCreateInfo, nullptr, &transferCommandPool);
 	}

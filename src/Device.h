@@ -15,7 +15,7 @@ struct SurfaceSupportDetails {
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamilyIndex;
 	std::optional<uint32_t> presentationFamilyIndex;
-	std::optional<uint32_t> transferNoGraphicsFamilyIndex;
+	std::optional<uint32_t> transferFamilyIndex;
 };
 
 SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
