@@ -146,31 +146,6 @@ std::vector<VkImageView> createSwapchainImageViews(
 	return swapchainImageViews;
 }
 
-void destroySwapchainFramebuffers(VkDevice device, std::vector<VkFramebuffer>* framebuffers) {
-	for (auto framebuffer : *framebuffers) {
-		vkDestroyFramebuffer(device, framebuffer, nullptr);
-		framebuffer = {};
-	}
-	framebuffers->clear();
-}
-
-void destroySwapchainImageViews(VkDevice device, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers) {
-	if (framebuffers) {
-		destroySwapchainFramebuffers(device, framebuffers);
-	}
-	for (auto& imageView : *imageViews) {
-		vkDestroyImageView(device, imageView, nullptr);
-	}
-	imageViews->clear();
-}
-
-void destroySwapchain(VkDevice device, VkSwapchainKHR swapchainHandle, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers) {
-	if (imageViews) {
-		destroySwapchainImageViews(device, imageViews, framebuffers);
-	}
-	vkDestroySwapchainKHR(device, swapchainHandle, nullptr);
-}
-
 std::vector<VkFramebuffer> createSwapchainFramebuffers(
 		VkDevice device,
 		const std::vector<VkImageView>& swapchainImageViews,
@@ -195,6 +170,31 @@ std::vector<VkFramebuffer> createSwapchainFramebuffers(
 	}
 
 	return swapchainFramebuffers;
+}
+
+void destroySwapchainFramebuffers(VkDevice device, std::vector<VkFramebuffer>* framebuffers) {
+	for (auto framebuffer : *framebuffers) {
+		vkDestroyFramebuffer(device, framebuffer, nullptr);
+		framebuffer = {};
+	}
+	framebuffers->clear();
+}
+
+void destroySwapchainImageViews(VkDevice device, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers) {
+	if (framebuffers) {
+		destroySwapchainFramebuffers(device, framebuffers);
+	}
+	for (auto& imageView : *imageViews) {
+		vkDestroyImageView(device, imageView, nullptr);
+	}
+	imageViews->clear();
+}
+
+void destroySwapchain(VkDevice device, VkSwapchainKHR swapchainHandle, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers) {
+	if (imageViews) {
+		destroySwapchainImageViews(device, imageViews, framebuffers);
+	}
+	vkDestroySwapchainKHR(device, swapchainHandle, nullptr);
 }
 
 VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats) {
