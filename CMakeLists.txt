@@ -49,7 +49,7 @@ set(SRC_FILES
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
 target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
-target_include_directories(CitiesAsEcosystems PRIVATE ${SRC_DIR})
+target_include_directories(CitiesAsEcosystems PRIVATE ${SRC_DIR} "${CMAKE_SOURCE_DIR}/vendor/")
 
 if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
 	target_compile_definitions(CitiesAsEcosystems
@@ -59,15 +59,15 @@ if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
 else()
 endif()
 
-# add_custom_command(
-# 	TARGET CitiesAsEcosystems POST_BUILD
-#     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#         "${CMAKE_BINARY_DIR}/compile_commands.json"
-#         "${CMAKE_SOURCE_DIR}/src/"
-#     DEPENDS target_that_generates_compile_commands
-#     COMMENT "Copying compile_commands.json to src directory"
-#     VERBATIM
-# )
+add_custom_command(
+	TARGET CitiesAsEcosystems POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/src/"
+    DEPENDS target_that_generates_compile_commands
+    COMMENT "Copying compile_commands.json to src directory"
+    VERBATIM
+)
 
 # currently no assets
 # add_custom_command(

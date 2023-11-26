@@ -3,7 +3,8 @@
 layout (location = 0) in vec2 inPosition;
 layout (location = 1) in vec3 inColor;
 
-layout (binding = 0) uniform UBO {
+layout (set = 0, binding = 0) uniform UBO {
+	vec3 omo;
 	mat4 model;
 	mat4 view;
 	mat4 proj;
