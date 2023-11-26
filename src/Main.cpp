@@ -1,6 +1,8 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // opengl depth is -1:1, vulkan is 0:1, this makes it 0:1
 // #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 
+#define STB_IMAGE_IMPLEMENTATION
+
 #include <iostream>
 #include <SDL2/SDL_vulkan.h>
 #include <SDL2/SDL.h>
@@ -1008,4 +1010,8 @@ void copyBuffers(VkDevice device, uint32_t transferQueueFamilyIndex, VkQueue tra
 	vkQueueWaitIdle(transferQueue);
 
 	vkDestroyCommandPool(device, transferPool, nullptr);
+}
+
+void createTextureImage() {
+
 }
