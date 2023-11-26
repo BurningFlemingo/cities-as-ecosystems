@@ -8,7 +8,9 @@
 !src/assets
 !src/assets/**
 !vendor
-!vendor/*
+!vendor/**
+
+
 !.gitmodules
 !CMakeLists.txt
 !CMakePresets.json
