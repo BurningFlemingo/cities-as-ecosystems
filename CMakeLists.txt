@@ -59,27 +59,28 @@ if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
 else()
 endif()
 
-file (COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${SRC_DIR})
-add_custom_command(
-	TARGET CitiesAsEcosystems POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_BINARY_DIR}/compile_commands.json"
-        "${CMAKE_SOURCE_DIR}/src/"
-    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-    COMMENT "Copying compile_commands.json to src directory"
-    VERBATIM
-)
-
-set (ASSETS_DIR ${SRC_DIR}/assets)
-
-add_custom_command(
-	TARGET CitiesAsEcosystems
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-		"${ASSETS_DIR}"
-		"${CMAKE_BINARY_DIR}/assets"
-	DEPENDS ${SRC_DIR}/assets/
-    COMMENT "Copying assets to bin directory"
-    VERBATIM
-)
+# file (COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${SRC_DIR})
+# add_custom_command(
+# 	TARGET CitiesAsEcosystems POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#         "${CMAKE_BINARY_DIR}/compile_commands.json"
+#         "${CMAKE_SOURCE_DIR}/src/"
+#     DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
+#     COMMENT "Copying compile_commands.json to src directory"
+#     VERBATIM
+# )
+# 
+# set (ASSETS_DIR ${SRC_DIR}/assets)
+# 
+# add_custom_command(
+# 	TARGET CitiesAsEcosystems
+#     COMMAND ${CMAKE_COMMAND} -E copy_directory
+# 		"${ASSETS_DIR}"
+# 		"${CMAKE_BINARY_DIR}/assets"
+# 		DEPENDS "${ASSETS_DIR}"
+# 	DEPENDS ${CMAKE_BINARY_DIR}/assets/
+#     COMMENT "Copying assets to bin directory"
+#     VERBATIM
+# )
 
 add_dependencies(CitiesAsEcosystems build_shaders)
