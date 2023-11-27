@@ -34,6 +34,19 @@ void copyBuffers(VkDevice device, VkCommandPool transferCmdPool, VkQueue transfe
 
 VkCommandBuffer beginTransientCommands(VkDevice device, VkCommandPool commandPool);
 void endTransientCommands(VkDevice device, VkCommandPool pool, VkCommandBuffer cmdBuffer, VkQueue queue);
+void transitionImageLayout(
+		VkDevice device,
+		VkCommandPool transferPool,
+		VkCommandPool graphicsPool,
+		VkQueue transferQueue,
+		VkQueue graphicsQueue,
+		VkImage image,
+		VkImageLayout oldLayout,
+		VkImageLayout newLayout,
+		uint32_t srcQueueFamilyIndex,
+		uint32_t dstQueueFamilyIndex,
+		VkFormat format
+	);
 
 void createTextureImage(
 		VkDevice device, VkPhysicalDevice physicalDevice,
@@ -1131,23 +1144,37 @@ void copyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue trans
 	endTransientCommands(device, commandPool, cmdBuffer, transferQueue);
 }
 
-void transitionImageLayout(VkDevice device, VkCommandPool transferPool, VkQueue transferQueue, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t srcQueueFamilyIndex, uint32_t dstQueueFamilyIndex, VkFormat format) {
+void transitionImageLayout(
+		VkDevice device,
+		VkCommandPool transferPool,
+		VkCommandPool graphicsPool,
+		VkQueue transferQueue,
+		VkQueue graphicsQueue,
+		VkImage image,
+		VkImageLayout oldLayout,
+		VkImageLayout newLayout,
+		uint32_t srcQueueFamilyIndex,
+		uint32_t dstQueueFamilyIndex,
+		VkFormat format
+	) {
 	VkCommandBuffer cmdBuffer{beginTransientCommands(device, transferPool)};
 
 	VkImageMemoryBarrier barrier{};
 
 	VkPipelineStageFlags srcStage{};
 	VkPipelineStageFlags dstStage{};
+	VkAccessFlags srcAccessFlags{};
+	VkAccessFlags dstAccessFlags{};
 
 	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		srcAccessFlags = 0;
+		dstAccessFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 
 		srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 	} else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		srcAccessFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
+		dstAccessFlags = VK_ACCESS_SHADER_READ_BIT;
 
 		srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -1169,16 +1196,44 @@ void transitionImageLayout(VkDevice device, VkCommandPool transferPool, VkQueue 
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 
-	vkCmdPipelineBarrier(
-			cmdBuffer,
-			srcStage, dstStage,
-			0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier
-		);
+	if (srcQueueFamilyIndex != dstQueueFamilyIndex) {
+		barrier.srcAccessMask = srcAccessFlags;
+		barrier.dstAccessMask = 0;
+		vkCmdPipelineBarrier(
+				cmdBuffer,
+				srcStage, srcStage,
+				0,
+				0, nullptr,
+				0, nullptr,
+				1, &barrier
+			);
+		endTransientCommands(device, transferPool, cmdBuffer, transferQueue);
+		VkCommandBuffer aquireCmdBuffer{beginTransientCommands(device, graphicsPool)};
 
-	endTransientCommands(device, transferPool, cmdBuffer, transferQueue);
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = dstAccessFlags;
+		vkCmdPipelineBarrier(
+				aquireCmdBuffer,
+				dstStage, dstStage,
+				0,
+				0, nullptr,
+				0, nullptr,
+				1, &barrier
+			);
+		endTransientCommands(device, graphicsPool, aquireCmdBuffer, graphicsQueue);
+	} else {
+		vkCmdPipelineBarrier(
+				cmdBuffer,
+				srcStage, dstStage,
+				0,
+				0, nullptr,
+				0, nullptr,
+				1, &barrier
+			);
+
+		endTransientCommands(device, transferPool, cmdBuffer, transferQueue);
+	}
+
 }
 
 void createTextureImage(
@@ -1221,96 +1276,10 @@ void createTextureImage(
 			textureImage, textureMemory
 		);
 
-	transitionImageLayout(device, transferPool, transferQueue, *textureImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, VK_FORMAT_R8G8B8A8_SRGB);
+	transitionImageLayout(device, transferPool, graphicsPool, transferQueue, graphicsQueue, *textureImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, VK_FORMAT_R8G8B8A8_SRGB);
 	copyBufferToImage(device, transferPool, transferQueue, stagingBuffer, *textureImage, tWidth, tHeight);
-	// transitionImageLayout(device, transferPool, transferQueue, *textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, transferQueueFamilyIndex, graphicsQueueFamilyIndex, VK_FORMAT_R8G8B8A8_SRGB);
-	VkCommandBuffer cmdBuffer{beginTransientCommands(device, transferPool)};
+	transitionImageLayout(device, transferPool, graphicsPool, transferQueue, graphicsQueue, *textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, transferQueueFamilyIndex, graphicsQueueFamilyIndex, VK_FORMAT_R8G8B8A8_SRGB);
 
-	VkImageMemoryBarrier barrier{};
-
-	VkPipelineStageFlags srcStage{};
-	VkPipelineStageFlags dstStage{};
-
-	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-	srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	barrier.srcQueueFamilyIndex = transferQueueFamilyIndex;
-	barrier.dstQueueFamilyIndex = graphicsQueueFamilyIndex;
-
-	barrier.image = *textureImage;
-	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	vkCmdPipelineBarrier(
-			cmdBuffer,
-			srcStage, srcStage,
-			0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier
-		);
-
-	vkEndCommandBuffer(cmdBuffer);
-
-	VkSemaphore sem{};
-	VkSemaphoreCreateInfo semInfo{};
-	semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-	vkCreateSemaphore(device, &semInfo, nullptr, &sem);
-
-	VkSubmitInfo bufSubmitInfo{};
-	bufSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	bufSubmitInfo.commandBufferCount = 1;
-	bufSubmitInfo.pCommandBuffers = &cmdBuffer;
-	bufSubmitInfo.signalSemaphoreCount = 1;
-	bufSubmitInfo.pSignalSemaphores = &sem;
-
-	if (vkQueueSubmit(transferQueue, 1, &bufSubmitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-		throw std::runtime_error("could not submit to command buffer");
-	}
-	vkQueueWaitIdle(transferQueue);
-
-	vkFreeCommandBuffers(device, transferPool, 1, &cmdBuffer);
-
-	VkCommandBuffer aquireCmdBuff{beginTransientCommands(device, graphicsPool)};
-	barrier.srcQueueFamilyIndex = transferQueueFamilyIndex;
-	barrier.dstQueueFamilyIndex = graphicsQueueFamilyIndex;
-
-	vkCmdPipelineBarrier(
-			aquireCmdBuff,
-			dstStage, dstStage,
-			0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier
-		);
-
-	vkEndCommandBuffer(aquireCmdBuff);
-
-	VkSubmitInfo bufSubmitInfo2{};
-	bufSubmitInfo2.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	bufSubmitInfo2.commandBufferCount = 1;
-	bufSubmitInfo2.pCommandBuffers = &aquireCmdBuff;
-	bufSubmitInfo2.waitSemaphoreCount = 1;
-	bufSubmitInfo2.pWaitSemaphores = &sem;
-	bufSubmitInfo2.pWaitDstStageMask = &dstStage;
-
-	if (vkQueueSubmit(graphicsQueue, 1, &bufSubmitInfo2, VK_NULL_HANDLE) != VK_SUCCESS) {
-		throw std::runtime_error("could not submit to command buffer");
-	}
-	vkQueueWaitIdle(graphicsQueue);
-
-	vkDestroySemaphore(device, sem, nullptr);
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
