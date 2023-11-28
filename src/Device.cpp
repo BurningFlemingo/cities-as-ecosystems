@@ -60,6 +60,8 @@ QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfa
 	uint32_t presentationQueueIndices{};
 	uint32_t transferQueueIndices{};
 	for (uint32_t i{}; i < queueFamilyProps.size(); i++) {
+		queueInfo.numQueuesAtIndex[i] = queueFamilyProps[i].queueCount;
+
 		VkBool32 surfaceSupport{};
 		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &surfaceSupport);
 		if (surfaceSupport) {
@@ -73,7 +75,6 @@ QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfa
 		if (queueFamilyProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT){
 			transferQueueIndices |= 1 << i;
 		}
-		queueInfo.nQueueAtIndex[i] = queueFamilyProps[i].queueCount;
 	}
 
 	queueInfo.packedQueueFamilyIndices[QueueFamily::graphics] = graphicsQueueIndices;

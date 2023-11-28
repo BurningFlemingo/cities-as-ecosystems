@@ -28,7 +28,7 @@ struct QueueFamilyIndices {
 
 struct QueueInfo {
 	std::unordered_map<QueueFamily, uint32_t> packedQueueFamilyIndices{};
-	std::unordered_map<uint32_t, uint32_t> nQueueAtIndex;
+	std::unordered_map<uint32_t, uint32_t> numQueuesAtIndex;
 };
 
 SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
