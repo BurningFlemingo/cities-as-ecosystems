@@ -800,7 +800,7 @@ int main(int argc, char* argv[]) {
 				float time{ std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count() };
 
 				UBO ubo{};
-				ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(90.f), glm::vec3(1.f, 1.f, 1.f));
+				ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(360.f), glm::vec3(0.f, 0.f, 1.f));
 				ubo.view = glm::lookAt(glm::vec3(2.f, 0.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
 				ubo.proj = glm::perspective(glm::radians(45.f), (float)swapchain.extent.width / swapchain.extent.height, 0.1f, 10.f);
 
@@ -1071,9 +1071,8 @@ void endTransientCommands(VkDevice device, VkCommandPool pool, VkCommandBuffer c
 	bufSubmitInfo.pCommandBuffers = &cmdBuffer;
 
 	if (vkQueueSubmit(queue, 1, &bufSubmitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-		throw std::runtime_error("could not submit to command buffer");
+		throw std::runtime_error("could not submit command buffer");
 	}
-
 	vkQueueWaitIdle(queue);
 
 	vkFreeCommandBuffers(device, pool, 1, &cmdBuffer);
@@ -1233,7 +1232,6 @@ void transitionImageLayout(
 
 		endTransientCommands(device, transferPool, cmdBuffer, transferQueue);
 	}
-
 }
 
 void createTextureImage(
