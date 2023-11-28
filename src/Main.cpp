@@ -1206,8 +1206,33 @@ void transitionImageLayout(
 				0, nullptr,
 				1, &barrier
 			);
-		endTransientCommands(device, transferPool, cmdBuffer, transferQueue);
-		VkCommandBuffer aquireCmdBuffer{beginTransientCommands(device, graphicsPool)};
+
+		VkSemaphoreCreateInfo semCreateInfo{};
+		semCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+		VkSemaphore ownershipTransitionSem{};
+		vkCreateSemaphore(device, &semCreateInfo, nullptr, &ownershipTransitionSem);
+
+		vkEndCommandBuffer(cmdBuffer);
+
+		VkSubmitInfo releaseInfo{};
+		releaseInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		releaseInfo.commandBufferCount = 1;
+		releaseInfo.pCommandBuffers = &cmdBuffer;
+		releaseInfo.signalSemaphoreCount = 1;
+		releaseInfo.pSignalSemaphores = &ownershipTransitionSem;
+
+		VkCommandBuffer aquireCmdBuffer{};
+
+		VkSubmitInfo aquireInfo{};
+		aquireInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		aquireInfo.commandBufferCount = 1;
+		aquireInfo.pCommandBuffers = &aquireCmdBuffer;
+		aquireInfo.waitSemaphoreCount = 1;
+		aquireInfo.pWaitSemaphores = &ownershipTransitionSem;
+		aquireInfo.pWaitDstStageMask = &srcStage;
+
+		aquireCmdBuffer = beginTransientCommands(device, graphicsPool);
 
 		barrier.srcAccessMask = 0;
 		barrier.dstAccessMask = dstAccessFlags;
@@ -1219,7 +1244,13 @@ void transitionImageLayout(
 				0, nullptr,
 				1, &barrier
 			);
-		endTransientCommands(device, graphicsPool, aquireCmdBuffer, graphicsQueue);
+
+		vkEndCommandBuffer(aquireCmdBuffer);
+
+		vkQueueSubmit(transferQueue, 1, &releaseInfo, VK_NULL_HANDLE);
+		vkQueueSubmit(graphicsQueue, 1, &aquireInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(graphicsQueue);
+		vkDestroySemaphore(device, ownershipTransitionSem, nullptr);
 	} else {
 		vkCmdPipelineBarrier(
 				cmdBuffer,
