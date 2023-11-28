@@ -1166,7 +1166,7 @@ void transitionImageLayout(
 	VkAccessFlags dstAccessFlags{};
 
 	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		srcAccessFlags = 0;
+		srcAccessFlags = VK_ACCESS_HOST_WRITE_BIT;
 		dstAccessFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 
 		srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -1213,7 +1213,7 @@ void transitionImageLayout(
 		barrier.dstAccessMask = dstAccessFlags;
 		vkCmdPipelineBarrier(
 				aquireCmdBuffer,
-				dstStage, dstStage,
+				srcStage, dstStage,
 				0,
 				0, nullptr,
 				0, nullptr,
