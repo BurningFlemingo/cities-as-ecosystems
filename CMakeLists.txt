@@ -44,12 +44,14 @@ set(SRC_FILES
 	${SRC_DIR}/Swapchain.cpp
 	${SRC_DIR}/Extensions.cpp
 	${SRC_DIR}/Device.cpp
+	${SRC_DIR}/Instance.cpp
 	${SRC_DIR}/debug/vulkan/ValidationLayers.cpp)
 
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
 target_link_libraries(CitiesAsEcosystems PRIVATE Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main)
 target_include_directories(CitiesAsEcosystems PRIVATE ${SRC_DIR} "${CMAKE_SOURCE_DIR}/vendor/")
+target_precompile_headers(CitiesAsEcosystems PRIVATE ${SRC_DIR}/pch.h)
 
 if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
 	target_compile_definitions(CitiesAsEcosystems

@@ -1,8 +1,4 @@
 #include "Swapchain.h"
-#include <SDL_vulkan.h>
-#include <algorithm>
-
-#include <stdexcept>
 
 VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats);
 VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);

@@ -1,36 +1,27 @@
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE // opengl depth is -1:1, vulkan is 0:1, this makes it 0:1
-// #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-
 #define STB_IMAGE_IMPLEMENTATION
+#include "pch.h"
 
 #include <iostream>
-#include <SDL2/SDL_vulkan.h>
-#include <SDL2/SDL.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <vulkan/vulkan.h>
+
 #include <stb/stb_image.h>
 
 #include "Swapchain.h"
 #include "Device.h"
 #include "Extensions.h"
 #include "debug/Debug.h"
+#include "Instance.h"
 
-#include <stdint.h>
-#include <vector>
-#include <algorithm>
 #include <optional>
-#include <limits.h>
 #include <fstream>
-#include <array>
-#include <unordered_set>
 #include <chrono>
+#include <limits.h>
+#include <assert.h>
 
 std::vector<char> readFile(const std::string& filename);
 
-uint32_t findValidMemoryTypeIndex(VkPhysicalDevice physicalDevice, uint32_t validTypeFlags, VkMemoryPropertyFlags requiredMemProperties);
-void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, VkBuffer* buffer, VkDeviceMemory* memory);
-void copyBuffers(VkDevice device, VkCommandPool transferCmdPool, VkQueue transferQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
+uint32_t findValidMemoryTypeIndex(Device device, uint32_t validTypeFlags, VkMemoryPropertyFlags requiredMemProperties);
+void createBuffer(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, VkBuffer* buffer, VkDeviceMemory* memory);
+void copyBuffers(const Device& device, VkCommandPool transferCmdPool, VkQueue transferQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize);
 
 VkCommandBuffer beginTransientCommands(VkDevice device, VkCommandPool commandPool);
 void endTransientCommands(VkDevice device, VkCommandPool pool, VkCommandBuffer cmdBuffer, VkQueue queue);
@@ -84,168 +75,29 @@ int main(int argc, char* argv[]) {
 		std::cerr << "window could not be created: " << SDL_GetError() << std::endl;
 	}
 
-	VkInstance instance;
-	{
-		VkApplicationInfo appInfo{};
-		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pApplicationName = "vulkan :D";
-		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.pEngineName = "VulkEngine";
-		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_0;
-
-		std::vector<const char*> instanceExtensions{getSurfaceExtensions(window)};
-
-		std::vector<const char*> enabledExtensions{queryInstanceExtensions(instanceExtensions)};
-		std::vector<const char*> debugExtensions{DEBUG::getInstanceDebugExtensions()};
-		enabledExtensions.reserve(debugExtensions.size());
-		enabledExtensions.insert(std::end(enabledExtensions), std::begin(debugExtensions), std::end(debugExtensions));
-
-		std::vector<const char*> enabledLayers{DEBUG::getInstanceDebugLayers()};
-
-		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{DEBUG::getDebugMessengerCreateInfo()};
-
-		VkInstanceCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		createInfo.pApplicationInfo = &appInfo;
-		createInfo.enabledExtensionCount = enabledExtensions.size();
-		createInfo.ppEnabledExtensionNames = enabledExtensions.data();
-		createInfo.enabledLayerCount = enabledLayers.size();
-		createInfo.ppEnabledLayerNames = enabledLayers.data();
-		createInfo.pNext = &debugCreateInfo;
-
-		if(vkCreateInstance(&createInfo, nullptr, &instance)) {
-			std::cerr << "could not create vulkan instance" << std::endl;
-		}
-	}
-
-	VkDebugUtilsMessengerEXT debugMessenger{DEBUG::createDebugMessenger(instance)};
+	Instance instance{createInstance(window)};
 
 	VkSurfaceKHR surface{};
-	SDL_Vulkan_CreateSurface(window, instance, &surface);
+	SDL_Vulkan_CreateSurface(window, instance.handle, &surface);
 
-	VkPhysicalDevice physicalDevice{};
-	QueueFamilyIndices queueFamilyIndices{};
-	SurfaceSupportDetails surfaceSupportDetails{};
-	std::vector<const char*> deviceExtensions{};
-	{
-		std::vector<const char*> requiredDeviceExtensions{
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-			VK_KHR_MAINTENANCE1_EXTENSION_NAME
-		};
-
-		uint32_t physicalDeviceCount{};
-		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
-
-		std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data());
-
-		int highestRating{-1};
-		for (const auto& pDevice : physicalDevices) {
-			VkPhysicalDeviceProperties pDeviceProps{};
-
-			vkGetPhysicalDeviceProperties(pDevice, &pDeviceProps);
-
-			QueueInfo queueInfo{queryDeviceQueueFamilyIndices(pDevice, surface)};
-			QueueFamilyIndices testQueueFamilyIndices{selectDeviceQueueFamilyIndices(queueInfo)};
-
-			if (!testQueueFamilyIndices.uniqueIndices.size()) {
-				continue;
-			}
-
-			std::vector<const char*> testDeviceExtensions{};
-			try {
-				testDeviceExtensions = queryDeviceExtensions(pDevice, requiredDeviceExtensions);
-			} catch(std::string e) {
-				continue;
-			}
-
-			SurfaceSupportDetails thisDeviceSurfaceSupportDetails{queryDeviceSurfaceSupportDetails(pDevice, surface)};
-			bool swapchainSupported{
-				!thisDeviceSurfaceSupportDetails.surfaceFormats.empty() &&
-				!thisDeviceSurfaceSupportDetails.presentModes.empty()
-			};
-
-			if (!swapchainSupported) {
-				continue;
-			}
-
-			int currentRating{};
-			switch(pDeviceProps.deviceType) {
-				case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-					currentRating += 1000;
-					break;
-				case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-					currentRating += 100;
-					break;
-				case VK_PHYSICAL_DEVICE_TYPE_CPU:
-					currentRating += 10;
-					break;
-				default:
-					break;
-			}
-
-			if (currentRating > highestRating) {
-				highestRating = currentRating;
-				deviceExtensions = testDeviceExtensions;
-				physicalDevice = pDevice;
-				surfaceSupportDetails = thisDeviceSurfaceSupportDetails;
-				queueFamilyIndices = testQueueFamilyIndices;
-			}
-		}
-	}
-
-	VkDevice device{};
-	{
-		const float queuePriority[3] = {1.0f, 1.0f, 1.0f};
-		size_t nQueueFamilyIndices{queueFamilyIndices.uniqueIndices.size()};
-
-		std::vector<VkDeviceQueueCreateInfo> queuesToCreate{};
-		queuesToCreate.reserve(nQueueFamilyIndices);
-		for (int i{}; i < nQueueFamilyIndices; i++) {
-			uint32_t queueCount{};
-			for (const auto& family : queueFamilyIndices.uniqueIndices[i]) {
-				if (family == QueueFamily::presentation) {
-					continue;
-				}
-				queueCount++;
-			}
-			VkDeviceQueueCreateInfo queueCreateInfo{};
-			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			queueCreateInfo.queueFamilyIndex = i;
-			queueCreateInfo.queueCount = queueCount;
-			queueCreateInfo.pQueuePriorities = queuePriority;
-
-			queuesToCreate.emplace_back(queueCreateInfo);
-		}
-
-		VkDeviceCreateInfo deviceCreateInfo{};
-		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceCreateInfo.queueCreateInfoCount = queuesToCreate.size();
-		deviceCreateInfo.pQueueCreateInfos = queuesToCreate.data();
-		deviceCreateInfo.pEnabledFeatures = nullptr;
-		deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
-		deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-		vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
-	}
+	Device device{createDevice(instance, surface)};
 
 	VkQueue graphicsQueue{};
 	VkQueue presentQueue{};
 	VkQueue transferQueue{};
-	for (auto indexMap : queueFamilyIndices.uniqueIndices) {
+	for (auto indexMap : device.queueFamilyIndices.uniqueIndices) {
 		for (int i{}; i < indexMap.second.size(); i++) {
 			QueueFamily family{indexMap.second[i]};
 			uint32_t queueFamilyIndex{indexMap.first};
 
 			switch (family) {
 				case QueueFamily::graphics:
-					vkGetDeviceQueue(device, queueFamilyIndex, i, &graphicsQueue);
+					vkGetDeviceQueue(device.logical, queueFamilyIndex, i, &graphicsQueue);
 				case QueueFamily::presentation:
 					presentQueue = graphicsQueue;
 					break;
 				case QueueFamily::transfer:
-					vkGetDeviceQueue(device, queueFamilyIndex, i, &transferQueue);
+					vkGetDeviceQueue(device.logical, queueFamilyIndex, i, &transferQueue);
 					break;
 				default:
 					break;
@@ -260,15 +112,14 @@ int main(int argc, char* argv[]) {
 		transferPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		transferPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.familyToIndex[QueueFamily::transfer];
 
-		if (vkCreateCommandPool(device, &transferPoolCreateInfo, nullptr, &transferPool) != VK_SUCCESS) {
+		if (vkCreateCommandPool(device.logical, &transferPoolCreateInfo, nullptr, &transferPool) != VK_SUCCESS) {
 			std::cerr << "could not create transfer command pool" << std::endl;
 		}
 	}
 
 
 	Swapchain swapchain{
-		createSwapchain(
-				device, window, surface, surfaceSupportDetails)
+		createSwapchain(device, window, surface)
 	};
 
 	VkShaderModule vertexShaderModule{};
@@ -287,8 +138,8 @@ int main(int argc, char* argv[]) {
 		fShaderModuleCreateInfo.codeSize = fragShader.size();
 		fShaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(fragShader.data());
 
-		vkCreateShaderModule(device, &vShaderModuleCreateInfo, nullptr, &vertexShaderModule);
-		vkCreateShaderModule(device, &fShaderModuleCreateInfo, nullptr, &fragmentShaderModule);
+		vkCreateShaderModule(device.logical, &vShaderModuleCreateInfo, nullptr, &vertexShaderModule);
+		vkCreateShaderModule(device.logical, &fShaderModuleCreateInfo, nullptr, &fragmentShaderModule);
 	}
 
 	VkPipelineShaderStageCreateInfo pipelineStages[2];
@@ -641,7 +492,6 @@ int main(int argc, char* argv[]) {
 		pipelineCreateInfo.renderPass = renderPass;
 		pipelineCreateInfo.subpass = 0;
 
-		pipelineCreateInfo.basePipelineIndex = VK_NULL_HANDLE;
 		pipelineCreateInfo.basePipelineIndex = -1;
 
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipeline) != VK_SUCCESS) {
@@ -961,11 +811,11 @@ int main(int argc, char* argv[]) {
 
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
-	vkDestroySurfaceKHR(instance, surface, nullptr);
+	vkDestroySurfaceKHR(instance.handle, surface, nullptr);
 
 	vkDestroyDevice(device, nullptr);
-	DEBUG::destroyDebugMessenger(instance, debugMessenger, nullptr);
-	vkDestroyInstance(instance, nullptr);
+	DEBUG::destroyDebugMessenger(instance.handle, instance.debugMessenger, nullptr);
+	vkDestroyInstance(instance.handle, nullptr);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
@@ -1002,14 +852,14 @@ uint32_t findValidMemoryTypeIndex(VkPhysicalDevice physicalDevice, uint32_t vali
 	throw std::runtime_error("could not find valid memory type");
 }
 
-void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, VkBuffer* buffer, VkDeviceMemory* memory) {
+void createBuffer(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memFlags, VkBuffer* buffer, VkDeviceMemory* memory) {
 	VkBufferCreateInfo bufferCreateInfo{};
 	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	bufferCreateInfo.usage = usage;
 	bufferCreateInfo.size = size;
 
-	if (vkCreateBuffer(device, &bufferCreateInfo, nullptr, buffer) != VK_SUCCESS) {
+	if (vkCreateBuffer(device.logical, &bufferCreateInfo, nullptr, buffer) != VK_SUCCESS) {
 		throw std::runtime_error("could not create buffer");
 	}
 
@@ -1029,7 +879,7 @@ void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize
 	vkBindBufferMemory(device, *buffer, *memory, 0);
 }
 
-void copyBuffers(VkDevice device, VkCommandPool transferCmdPool, VkQueue transferQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize) {
+void copyBuffers(const VkDevice& device, VkCommandPool transferCmdPool, VkQueue transferQueue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize) {
 	VkCommandBuffer cmdBuffer{beginTransientCommands(device, transferCmdPool)};
 
 	VkBufferCopy bufCopyRegion{};
@@ -1040,7 +890,7 @@ void copyBuffers(VkDevice device, VkCommandPool transferCmdPool, VkQueue transfe
 	endTransientCommands(device, transferCmdPool, cmdBuffer, transferQueue);
 }
 
-VkCommandBuffer beginTransientCommands(VkDevice device, VkCommandPool commandPool) {
+VkCommandBuffer beginTransientCommands(const VkDevice& device, VkCommandPool commandPool) {
 	VkCommandBuffer commandBuffer;
 	{
 		VkCommandBufferAllocateInfo cmdBufferAllocInfo{};

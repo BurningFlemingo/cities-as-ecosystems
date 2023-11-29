@@ -1,10 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <SDL2/SDL.h>
-
-#include <vector>
-#include <stdint.h>
+#include "pch.h"
 
 #include "Device.h"
 
@@ -18,27 +14,34 @@ struct Swapchain {
 };
 
 Swapchain createSwapchain(
-		VkDevice device,
+		const Device& device,
 		SDL_Window* window,
-		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails);
+		VkSurfaceKHR surface
+	);
 
-Swapchain recreateSwapchain(VkDevice device,
+Swapchain recreateSwapchain(const Device& device,
 		SDL_Window* window,
 		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails, 
-		VkSwapchainKHR oldSwapchainHandle);
+		VkSwapchainKHR oldSwapchainHandle
+	);
 
 std::vector<VkImageView> createSwapchainImageViews(
-		VkDevice device,
-		const Swapchain& swapchain);
+		const Device& device,
+		const Swapchain& swapchain
+	);
 
 std::vector<VkFramebuffer> createSwapchainFramebuffers(
-		VkDevice device,
+		const Device& device,
 		const std::vector<VkImageView>& swapchainImageViews,
 		const VkExtent2D swapchainExtent,
-		const VkRenderPass renderPass);
+		const VkRenderPass renderPass
+	);
 
 void destroySwapchainFramebuffers(VkDevice device, std::vector<VkFramebuffer>* framebuffers);
 void destroySwapchainImageViews(VkDevice device, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers);
-void destroySwapchain(VkDevice device, VkSwapchainKHR swapchainHandle, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers);
+void destroySwapchain(
+		const Device& device,
+		VkSwapchainKHR swapchainHandle,
+		std::vector<VkImageView>* imageViews,
+		std::vector<VkFramebuffer>* framebuffers
+	);

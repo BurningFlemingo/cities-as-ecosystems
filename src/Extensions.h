@@ -1,8 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <SDL2/SDL.h>
-#include <vector>
+#include "pch.h"
 
 std::vector<const char*> getSurfaceExtensions(SDL_Window* window);
 std::vector<const char*> queryInstanceExtensions(const std::vector<const char*>& extensions);

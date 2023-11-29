@@ -1,8 +1,17 @@
 #include "Device.h"
-#include <stdexcept>
+
+#include "Extensions.h"
+
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <optional>
+
+struct PhysicalDeviceInfo {
+	VkPhysicalDevice handle;
+
+	SurfaceSupportDetails surfaceSupportDetails{};
+};
 
 SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
 	SurfaceSupportDetails swapchainDetails{};
@@ -122,4 +131,116 @@ QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueInfo) {
 	queueFamilyIndices.uniqueIndices[transferIndex].emplace_back(QueueFamily::transfer);
 
 	return queueFamilyIndices;
+}
+
+PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface) {
+	PhysicalDeviceInfo deviceInfo{};
+
+	uint32_t physicalDeviceCount{};
+	vkEnumeratePhysicalDevices(instance.handle, &physicalDeviceCount, nullptr);
+
+	std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+	vkEnumeratePhysicalDevices(instance.handle, &physicalDeviceCount, physicalDevices.data());
+
+	int highestRating{-1};
+	for (const auto& pDevice : physicalDevices) {
+		VkPhysicalDeviceProperties pDeviceProps{};
+
+		vkGetPhysicalDeviceProperties(pDevice, &pDeviceProps);
+
+		SurfaceSupportDetails thisDeviceSurfaceSupportDetails{queryDeviceSurfaceSupportDetails(pDevice, surface)};
+		bool swapchainSupported{
+			!thisDeviceSurfaceSupportDetails.surfaceFormats.empty() &&
+			!thisDeviceSurfaceSupportDetails.presentModes.empty()
+		};
+
+		if (!swapchainSupported) {
+			continue;
+		}
+
+		int currentRating{};
+		switch(pDeviceProps.deviceType) {
+			case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+				currentRating += 1000;
+				break;
+			case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+				currentRating += 100;
+				break;
+			case VK_PHYSICAL_DEVICE_TYPE_CPU:
+				currentRating += 10;
+				break;
+			default:
+				break;
+		}
+
+		if (currentRating > highestRating) {
+			highestRating = currentRating;
+			deviceInfo.handle = pDevice;
+			deviceInfo.surfaceSupportDetails = thisDeviceSurfaceSupportDetails;
+		}
+	}
+
+	return deviceInfo;
+}
+
+VkDevice createLogicalDevice(
+		VkPhysicalDevice physicalDevice,
+		const QueueFamilyIndices& queueFamilyIndices,
+		const std::vector<const char*> deviceExtensions
+	) {
+	VkDevice device{};
+
+	const float queuePriority[3] = {1.0f, 1.0f, 1.0f};
+	size_t nQueueFamilyIndices{queueFamilyIndices.uniqueIndices.size()};
+
+	std::vector<VkDeviceQueueCreateInfo> queuesToCreate{};
+	queuesToCreate.reserve(nQueueFamilyIndices);
+	for (int i{}; i < nQueueFamilyIndices; i++) {
+		uint32_t queueCount{};
+		for (const auto& family : queueFamilyIndices.uniqueIndices.at(i)) {
+			if (family == QueueFamily::presentation) {
+				continue;
+			}
+			queueCount++;
+		}
+		VkDeviceQueueCreateInfo queueCreateInfo{};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = i;
+		queueCreateInfo.queueCount = queueCount;
+		queueCreateInfo.pQueuePriorities = queuePriority;
+
+		queuesToCreate.emplace_back(queueCreateInfo);
+	}
+
+	VkDeviceCreateInfo deviceCreateInfo{};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.queueCreateInfoCount = queuesToCreate.size();
+	deviceCreateInfo.pQueueCreateInfos = queuesToCreate.data();
+	deviceCreateInfo.pEnabledFeatures = nullptr;
+	deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
+	deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+	vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+
+	return device;
+}
+
+Device createDevice(const Instance& instance, VkSurfaceKHR surface) {
+	std::vector<const char*> requiredDeviceExtensions{
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+		VK_KHR_MAINTENANCE1_EXTENSION_NAME
+	};
+	Device device{};
+
+	PhysicalDeviceInfo physicalInfo{createPhysicalDevice(instance, surface)};
+	device.physical = physicalInfo.handle;
+	device.SurfaceSupportDetails = physicalInfo.surfaceSupportDetails;
+
+	QueueInfo queueInfo{queryDeviceQueueFamilyIndices(device.physical, surface)};
+	device.queueFamilyIndices = selectDeviceQueueFamilyIndices(queueInfo);
+
+	device.logical = createLogicalDevice(device.physical, device.queueFamilyIndices, requiredDeviceExtensions);
+
+
+	return device;
 }

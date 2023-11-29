@@ -1,11 +1,7 @@
 #include "Extensions.h"
 
-#include <SDL2/SDL_vulkan.h>
-
-#include <stdexcept>
 #include <string>
 #include <sstream>
-#include <algorithm>
 
  std::vector<const char*> findExtensions(
 		 const std::vector<VkExtensionProperties>& avaliableExtensionProperties,

@@ -1,13 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <SDL2/SDL.h>
-#include <vector>
-#include <optional>
-#include <tuple>
-#include <unordered_map>
-#include <unordered_set>
-#include <array>
+#include "pch.h"
+#include "Instance.h"
 
 enum class QueueFamily : uint32_t {
 	graphics, 
@@ -31,6 +25,17 @@ struct QueueInfo {
 	std::unordered_map<uint32_t, uint32_t> numQueuesAtIndex;
 };
 
-SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
-QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueFamilyIndices);
+struct Device {
+	VkDevice logical{};
+	VkPhysicalDevice physical{};
+
+	QueueFamilyIndices queueFamilyIndices{};
+	SurfaceSupportDetails surfaceSupportDetails{};
+};
+
+Device createDevice(const Instance& instance, VkSurfaceKHR surface);
+
+// SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+// QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+// QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueFamilyIndices);
+
