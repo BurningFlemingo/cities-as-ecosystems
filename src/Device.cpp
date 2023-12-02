@@ -11,6 +11,8 @@ struct PhysicalDeviceInfo {
 	VkPhysicalDevice handle;
 
 	SurfaceSupportDetails surfaceSupportDetails{};
+	VkPhysicalDeviceProperties properties{};
+	VkPhysicalDeviceFeatures features{};
 };
 
 SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
@@ -122,9 +124,9 @@ QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueInfo) {
 		transferIndex = graphicsIndex;
 	}
 
-	queueFamilyIndices.familyToIndex[QueueFamily::graphics] = graphicsIndex;
-	queueFamilyIndices.familyToIndex[QueueFamily::presentation] = presentationIndex;
-	queueFamilyIndices.familyToIndex[QueueFamily::transfer] = transferIndex;
+	queueFamilyIndices.graphicsIndex = graphicsIndex;
+	queueFamilyIndices.presentationIndex = presentationIndex;
+	queueFamilyIndices.transferIndex = transferIndex;
 
 	queueFamilyIndices.uniqueIndices[graphicsIndex].emplace_back(QueueFamily::graphics);
 	queueFamilyIndices.uniqueIndices[presentationIndex].emplace_back(QueueFamily::presentation);
@@ -145,8 +147,10 @@ PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface)
 	int highestRating{-1};
 	for (const auto& pDevice : physicalDevices) {
 		VkPhysicalDeviceProperties pDeviceProps{};
-
 		vkGetPhysicalDeviceProperties(pDevice, &pDeviceProps);
+
+		VkPhysicalDeviceFeatures pDeviceFeats{};
+		vkGetPhysicalDeviceFeatures(pDevice, &pDeviceFeats);
 
 		SurfaceSupportDetails thisDeviceSurfaceSupportDetails{queryDeviceSurfaceSupportDetails(pDevice, surface)};
 		bool swapchainSupported{
@@ -159,7 +163,7 @@ PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface)
 		}
 
 		int currentRating{};
-		switch(pDeviceProps.deviceType) {
+		switch (pDeviceProps.deviceType) {
 			case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
 				currentRating += 1000;
 				break;
@@ -173,10 +177,16 @@ PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface)
 				break;
 		}
 
+		if (pDeviceFeats.samplerAnisotropy) {
+			currentRating += 1;
+		}
+
 		if (currentRating > highestRating) {
 			highestRating = currentRating;
 			deviceInfo.handle = pDevice;
 			deviceInfo.surfaceSupportDetails = thisDeviceSurfaceSupportDetails;
+			deviceInfo.properties = pDeviceProps;
+			deviceInfo.features = pDeviceFeats;
 		}
 	}
 
@@ -184,7 +194,7 @@ PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface)
 }
 
 VkDevice createLogicalDevice(
-		VkPhysicalDevice physicalDevice,
+		const PhysicalDeviceInfo& physicalDeviceInfo,
 		const QueueFamilyIndices& queueFamilyIndices,
 		const std::vector<const char*> deviceExtensions
 	) {
@@ -219,8 +229,9 @@ VkDevice createLogicalDevice(
 	deviceCreateInfo.pEnabledFeatures = nullptr;
 	deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
 	deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+	deviceCreateInfo.pEnabledFeatures = &physicalDeviceInfo.features;
 
-	vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+	vkCreateDevice(physicalDeviceInfo.handle, &deviceCreateInfo, nullptr, &device);
 
 	return device;
 }
@@ -234,13 +245,21 @@ Device createDevice(const Instance& instance, VkSurfaceKHR surface) {
 
 	PhysicalDeviceInfo physicalInfo{createPhysicalDevice(instance, surface)};
 	device.physical = physicalInfo.handle;
-	device.SurfaceSupportDetails = physicalInfo.surfaceSupportDetails;
+	device.surfaceSupportDetails = physicalInfo.surfaceSupportDetails;
+	device.properties = physicalInfo.properties;
+	device.features = physicalInfo.features;
 
 	QueueInfo queueInfo{queryDeviceQueueFamilyIndices(device.physical, surface)};
 	device.queueFamilyIndices = selectDeviceQueueFamilyIndices(queueInfo);
 
-	device.logical = createLogicalDevice(device.physical, device.queueFamilyIndices, requiredDeviceExtensions);
+	device.logical = createLogicalDevice(physicalInfo, device.queueFamilyIndices, requiredDeviceExtensions);
 
+	VkPhysicalDeviceProperties deviceProps{};
+	vkGetPhysicalDeviceProperties(device.physical, &deviceProps);
+
+	VkPhysicalDeviceMemoryProperties memProps{};
+	vkGetPhysicalDeviceMemoryProperties(device.physical, &memProps);
+	device.memProperties = memProps;
 
 	return device;
 }

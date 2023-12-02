@@ -45,7 +45,8 @@ set(SRC_FILES
 	${SRC_DIR}/Extensions.cpp
 	${SRC_DIR}/Device.cpp
 	${SRC_DIR}/Instance.cpp
-	${SRC_DIR}/debug/vulkan/ValidationLayers.cpp)
+	${SRC_DIR}/debug/vulkan/ValidationLayers.cpp
+)
 
 add_executable(CitiesAsEcosystems ${SRC_FILES})
 
@@ -57,6 +58,8 @@ if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
 	target_compile_definitions(CitiesAsEcosystems
 		PRIVATE
 		DEBUG_VALIDATION_LAYERS
+		ENABLE_WARNINGS
+		ENABLE_INFO
 	)
 else()
 endif()
