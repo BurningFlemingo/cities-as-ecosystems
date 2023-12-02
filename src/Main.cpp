@@ -17,7 +17,6 @@
 #include <fstream>
 #include <chrono>
 #include <limits.h>
-#include <assert.h>
 
 struct ImageInfo {
 	int width{};
@@ -143,9 +142,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-
 	Swapchain swapchain{
-		createSwapchain(device.logical, window, surface, device.surfaceSupportDetails)
+		createSwapchain(device, window, surface)
 	};
 
 	VkShaderModule vertexShaderModule{};
@@ -583,12 +581,12 @@ int main(int argc, char* argv[]) {
 
 	std::vector<VkImageView> swapchainImageViews{
 		createSwapchainImageViews(
-				device.logical,
+				device,
 				swapchain)
 	};
 
 	std::vector<VkFramebuffer> swapchainFramebuffers{
-		createSwapchainFramebuffers(device.logical, swapchainImageViews, swapchain.extent, renderPass)
+		createSwapchainFramebuffers(device, swapchainImageViews, swapchain, renderPass)
 	};
 
 
@@ -680,14 +678,14 @@ int main(int argc, char* argv[]) {
 				if (swapchainIsDirty) {
 					windowResized = false;
 					VkSwapchainKHR oldSwapchainHandle{swapchain.handle};
-					swapchain = recreateSwapchain(device.logical, window, surface, device.surfaceSupportDetails, oldSwapchainHandle);
+					swapchain = recreateSwapchain(device, window, surface, oldSwapchainHandle);
 
-					destroySwapchain(device.logical, oldSwapchainHandle, nullptr, nullptr);
+					destroySwapchain(device, oldSwapchainHandle, nullptr, nullptr);
 					vkWaitForFences(device.logical, MAX_FRAMES_IN_FLIGHT, inFlightFences.data(), VK_TRUE, UINT64_MAX);
 
-					destroySwapchainImageViews(device.logical, &swapchainImageViews, &swapchainFramebuffers);
-					swapchainImageViews = createSwapchainImageViews(device.logical, swapchain);
-					swapchainFramebuffers = createSwapchainFramebuffers(device.logical, swapchainImageViews, swapchain.extent, renderPass);
+					destroySwapchainImageViews(device, &swapchainImageViews, &swapchainFramebuffers);
+					swapchainImageViews = createSwapchainImageViews(device, swapchain);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain, renderPass);
 
 					continue;
 				}
@@ -804,14 +802,14 @@ int main(int argc, char* argv[]) {
 				if (swapchainIsDirty) {
 					windowResized = false;
 					VkSwapchainKHR oldSwapchainHandle{swapchain.handle};
-					swapchain = recreateSwapchain(device.logical, window, surface, device.surfaceSupportDetails, oldSwapchainHandle);
+					swapchain = recreateSwapchain(device, window, surface, oldSwapchainHandle);
 
 					vkDeviceWaitIdle(device.logical);
-					destroySwapchain(device.logical, oldSwapchainHandle, nullptr, nullptr);
+					destroySwapchain(device, oldSwapchainHandle, nullptr, nullptr);
 
-					destroySwapchainImageViews(device.logical, &swapchainImageViews, &swapchainFramebuffers);
-					swapchainImageViews = createSwapchainImageViews(device.logical, swapchain);
-					swapchainFramebuffers = createSwapchainFramebuffers(device.logical, swapchainImageViews, swapchain.extent, renderPass);
+					destroySwapchainImageViews(device, &swapchainImageViews, &swapchainFramebuffers);
+					swapchainImageViews = createSwapchainImageViews(device, swapchain);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain, renderPass);
 
 					continue;
 				}
@@ -842,7 +840,7 @@ int main(int argc, char* argv[]) {
 		vkFreeMemory(device.logical, uboMemory[i], nullptr);
 	}
 
-	destroySwapchain(device.logical, swapchain.handle, &swapchainImageViews, &swapchainFramebuffers);
+	destroySwapchain(device, swapchain.handle, &swapchainImageViews, &swapchainFramebuffers);
 
 	vkDestroyBuffer(device.logical, vertexBuffer, nullptr);
 	vkFreeMemory(device.logical, vertexBufferMemory, nullptr);
@@ -1241,6 +1239,7 @@ VkSampler createSampler(const Device& device) {
 
 ImageInfo loadRGBAImage(const std::string& filePath) {
 	ImageInfo iInfo{};
+	stbi_set_flip_vertically_on_load(true);
 	stbi_uc* pixels{stbi_load(filePath.c_str(), &iInfo.width, &iInfo.height, &iInfo.channels, STBI_rgb_alpha)};
 	iInfo.pixels = pixels;
 

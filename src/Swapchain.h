@@ -14,36 +14,34 @@ struct Swapchain {
 };
 
 Swapchain createSwapchain(
-		VkDevice device,
+		const Device& device,
 		SDL_Window* window,
-		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails
+		VkSurfaceKHR surface
 	);
 
 Swapchain recreateSwapchain(
-		VkDevice device,
+		const Device& device,
 		SDL_Window* window,
 		VkSurfaceKHR surface,
-		const SurfaceSupportDetails& surfaceSupportDetails,
 		VkSwapchainKHR oldSwapchainHandle
 	);
 
 std::vector<VkImageView> createSwapchainImageViews(
-		VkDevice device,
+		const Device& device,
 		const Swapchain& swapchain
 	);
 
 std::vector<VkFramebuffer> createSwapchainFramebuffers(
-		VkDevice device,
+		const Device& device,
 		const std::vector<VkImageView>& swapchainImageViews,
-		const VkExtent2D swapchainExtent,
+		const Swapchain& swapchain,
 		const VkRenderPass renderPass
 	);
 
-void destroySwapchainFramebuffers(VkDevice device, std::vector<VkFramebuffer>* framebuffers);
-void destroySwapchainImageViews(VkDevice device, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers);
+void destroySwapchainFramebuffers(const Device& device, std::vector<VkFramebuffer>* framebuffers);
+void destroySwapchainImageViews(const Device& device, std::vector<VkImageView>* imageViews, std::vector<VkFramebuffer>* framebuffers);
 void destroySwapchain(
-		const VkDevice device,
+		const Device& device,
 		VkSwapchainKHR swapchainHandle,
 		std::vector<VkImageView>* imageViews,
 		std::vector<VkFramebuffer>* framebuffers

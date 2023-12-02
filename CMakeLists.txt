@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 
 project(CitiesAsEcosystems)
+set(CMAKE_SUPPRESS_REGENERATION true)
 
 find_package(SDL2 REQUIRED)
 find_package(glm REQUIRED)
@@ -64,19 +65,24 @@ if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
 else()
 endif()
 
-file (COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${SRC_DIR})
-add_custom_command(
-	TARGET CitiesAsEcosystems POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_BINARY_DIR}/compile_commands.json"
-        "${CMAKE_SOURCE_DIR}/src/"
-    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-    COMMENT "Copying compile_commands.json to src directory"
-    VERBATIM
-)
+if (EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
+	# file (COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${SRC_DIR})
+	add_custom_command(
+		TARGET CitiesAsEcosystems POST_BUILD
+	    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+	        "${CMAKE_BINARY_DIR}/compile_commands.json"
+	        "${CMAKE_SOURCE_DIR}/src/"
+	    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
+	    COMMENT "Copying compile_commands.json to src directory"
+	    VERBATIM
+	)
+endif()
+
+
 
 set (ASSETS_DIR ${SRC_DIR}/assets)
 
+if (EXISTS "${ASSETS_DIR}")
 add_custom_command(
 	TARGET CitiesAsEcosystems
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -87,5 +93,7 @@ add_custom_command(
     COMMENT "Copying assets to bin directory"
     VERBATIM
 )
+
+endif()
 
 add_dependencies(CitiesAsEcosystems build_shaders)

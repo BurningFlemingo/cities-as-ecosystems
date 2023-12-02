@@ -71,7 +71,7 @@ std::vector<const char*> findExtensions(
 			err << extension << " ";
 		}
 	}
-	DEBUG::assertInfo(err.str().size() == 0, "could not find all instance extensions: ", err.str());
+	assertInfo(err.str().size() == 0, "could not find all instance extensions: ", err.str());
 
 	return foundExtensions;
 }

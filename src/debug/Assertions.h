@@ -3,11 +3,11 @@
 #include "debug/Logging.h"
 #include <string>
 
-namespace DEBUG {
 	template <typename ...Args>
 	void assertFatal(bool condition, Args... args) {
 		if (!condition) {
 			LOGGING::log("\tFATAL::ASSERTION_FAILURE::", args..., "::",  __FILE__, "::", __LINE__); \
+				std::abort();
 			std::cout << std::endl;
 		}
 	}
@@ -36,5 +36,3 @@ namespace DEBUG {
 	template <typename ...Args>
 	void assertInfo(bool condition, Args... args) {}
 #endif
-
-}

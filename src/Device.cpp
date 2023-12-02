@@ -152,13 +152,27 @@ PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface)
 		VkPhysicalDeviceFeatures pDeviceFeats{};
 		vkGetPhysicalDeviceFeatures(pDevice, &pDeviceFeats);
 
-		SurfaceSupportDetails thisDeviceSurfaceSupportDetails{queryDeviceSurfaceSupportDetails(pDevice, surface)};
-		bool swapchainSupported{
-			!thisDeviceSurfaceSupportDetails.surfaceFormats.empty() &&
-			!thisDeviceSurfaceSupportDetails.presentModes.empty()
-		};
+		uint32_t queueFamilyCount{};
+		vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, nullptr);
 
-		if (!swapchainSupported) {
+		std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, queueFamilies.data());
+
+		bool thisDeviceSupportsSurface{};
+		bool thisDeviceSupportsGraphics{};
+		for (uint32_t i{}; i < queueFamilies.size(); i++) {
+			VkBool32 surfaceSupported{};
+			vkGetPhysicalDeviceSurfaceSupportKHR(pDevice, i, surface, &surfaceSupported);
+
+			thisDeviceSupportsSurface |= surfaceSupported;
+
+			if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+				thisDeviceSupportsGraphics |= true;
+			}
+		}
+
+
+		if (!thisDeviceSupportsSurface || !thisDeviceSupportsGraphics) {
 			continue;
 		}
 
@@ -184,7 +198,6 @@ PhysicalDeviceInfo createPhysicalDevice(Instance instance, VkSurfaceKHR surface)
 		if (currentRating > highestRating) {
 			highestRating = currentRating;
 			deviceInfo.handle = pDevice;
-			deviceInfo.surfaceSupportDetails = thisDeviceSurfaceSupportDetails;
 			deviceInfo.properties = pDeviceProps;
 			deviceInfo.features = pDeviceFeats;
 		}
@@ -245,7 +258,6 @@ Device createDevice(const Instance& instance, VkSurfaceKHR surface) {
 
 	PhysicalDeviceInfo physicalInfo{createPhysicalDevice(instance, surface)};
 	device.physical = physicalInfo.handle;
-	device.surfaceSupportDetails = physicalInfo.surfaceSupportDetails;
 	device.properties = physicalInfo.properties;
 	device.features = physicalInfo.features;
 

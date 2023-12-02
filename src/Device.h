@@ -33,7 +33,6 @@ struct Device {
 	VkPhysicalDevice physical{};
 
 	QueueFamilyIndices queueFamilyIndices{};
-	SurfaceSupportDetails surfaceSupportDetails{};
 
 	VkPhysicalDeviceProperties properties{};
 	VkPhysicalDeviceFeatures features{};

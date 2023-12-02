@@ -28,19 +28,18 @@ namespace LOGGING {
 	void severityLog(SEVERITY severity, Args... args) {
 		std::string severityStrings[3]{"INFO", "WARNING", "FATAL"};
 
-		std::cout << "\t" << severityStrings[(uint32_t)severity] << ": ";
+		std::cout << "\t" << severityStrings[(uint32_t)severity] << "::";
 
 		log(args...);
 
 		if (severity == SEVERITY::FATAL) {
-			std::cout << __FILE__ << "::" << __LINE__;
+			std::cout << "::" << __FILE__ << "::" << __LINE__ << std::endl;
+			std::abort();
 		}
 		std::cout << std::endl;
 	}
 }
 
-
-namespace DEBUG {
 
 template <typename ...Args>
 void logFatal(Args... args) {
@@ -66,4 +65,3 @@ void logFatal(Args... args) {
 	template <typename ...Args>
 	void logInfo(Args... args) {};
 #endif
-}
