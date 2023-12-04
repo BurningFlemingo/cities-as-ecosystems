@@ -6,21 +6,21 @@ namespace VkUtils {
 
 void createBuffer(
     const Device& device,
-    VkDeviceSize size,
-    VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags memFlags, 
-	VkSharingMode sharingMode,
+    const VkDeviceSize size,
+    const VkBufferUsageFlags usage,
+    const VkMemoryPropertyFlags memFlags, 
+	const VkSharingMode sharingMode,
 	VkBuffer* buffer,
     VkDeviceMemory* bufferMemory
 );
 
 void copyBuffers(
 	const Device& device,
-	VkCommandPool transferCmdPool,
-	VkQueue transferQueue,
-	VkBuffer srcBuffer,
-	VkBuffer dstBuffer,
-	VkDeviceSize copyAmmount
+	const VkCommandPool transferCmdPool,
+	const VkQueue transferQueue,
+	const VkBuffer srcBuffer,
+	const VkBuffer dstBuffer,
+	const VkDeviceSize copyAmmount
 );
 
 }
