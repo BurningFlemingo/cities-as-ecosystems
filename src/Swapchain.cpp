@@ -154,20 +154,21 @@ std::vector<VkImageView> createSwapchainImageViews(
 std::vector<VkFramebuffer> createSwapchainFramebuffers(
 		const Device& device,
 		const std::vector<VkImageView>& swapchainImageViews,
+		const VkImageView& depthBuffer,
 		const Swapchain& swapchain,
 		const VkRenderPass renderPass
 	) {
 	std::vector<VkFramebuffer> swapchainFramebuffers(swapchainImageViews.size());
 	for (int i{}; i < swapchainFramebuffers.size(); i++) {
-		VkImageView attachment{swapchainImageViews[i]};
+		std::array<VkImageView, 2> attachments{swapchainImageViews[i], depthBuffer};
 
 		VkFramebufferCreateInfo framebufferCreateInfo{};
 		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferCreateInfo.width = swapchain.extent.width;
 		framebufferCreateInfo.height = swapchain.extent.height;
 		framebufferCreateInfo.renderPass = renderPass;
-		framebufferCreateInfo.attachmentCount = 1;
-		framebufferCreateInfo.pAttachments = &attachment;
+		framebufferCreateInfo.attachmentCount = attachments.size();
+		framebufferCreateInfo.pAttachments = attachments.data();
 		framebufferCreateInfo.layers = 1;
 
 		if (vkCreateFramebuffer(device.logical, &framebufferCreateInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS) {

@@ -168,6 +168,20 @@ int main(int argc, char* argv[]) {
 		vertexAttributeDescriptions[2].location = 2;
 	}
 
+	Image depthBuffer{};
+	createImage(
+			device,
+			swapchain.extent.width, swapchain.extent.height,
+			VK_FORMAT_D32_SFLOAT,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			&depthBuffer.handle, 
+			&depthBuffer.memory
+	);
+
+	depthBuffer.view = createImageView(device, depthBuffer.handle, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
+
 	VkBuffer vertexBuffer{};
 	VkDeviceMemory vertexBufferMemory{};
 	{
@@ -266,7 +280,7 @@ int main(int argc, char* argv[]) {
 			&textureImage, 
 			&textureMemory
 		);
-	VkImageView textureImageView{createImageView(device, textureImage, VK_FORMAT_R8G8B8A8_SRGB)};
+	VkImageView textureImageView{createImageView(device, textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT)};
 	VkSampler textureSampler{createSampler(device)};
 
 
@@ -392,6 +406,7 @@ int main(int argc, char* argv[]) {
 			VK_DYNAMIC_STATE_VIEWPORT, 
 			VK_DYNAMIC_STATE_SCISSOR
 		};
+
 		VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
 		dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		dynamicStateCreateInfo.pDynamicStates = dynamicStates.data();
@@ -433,8 +448,11 @@ int main(int argc, char* argv[]) {
 		multisampleCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		multisampleCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-		VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo;
+		VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo{};
 		depthStencilCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencilCreateInfo.depthTestEnable = VK_TRUE;
+		depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
+		depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
 
 		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 		colorBlendAttachment.blendEnable = VK_TRUE;
@@ -458,6 +476,7 @@ int main(int argc, char* argv[]) {
 		pipelineLayoutCreateInfo.setLayoutCount = 1;
 		pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
 
+
 		if (vkCreatePipelineLayout(device.logical, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			std::cerr << "could not create pipeline layout" << std::endl;
 		}
@@ -475,32 +494,62 @@ int main(int argc, char* argv[]) {
 		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+		VkAttachmentDescription depthAttachment{};
+		depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+
+		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 		VkAttachmentReference colorAttachmentRef{};
 		colorAttachmentRef.attachment = 0;
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef{};
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		subpass.colorAttachmentCount = 1;
 		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-		VkSubpassDependency dependency{};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
+		VkSubpassDependency colorDependency{};
+		colorDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		colorDependency.dstSubpass = 0;
 
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		colorDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		colorDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		colorDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		
+		VkSubpassDependency depthDependency{};
+		depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		depthDependency.dstSubpass = 0;
+
+		depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+		depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		std::array<VkSubpassDependency, 2> dependencies{colorDependency, depthDependency};
+		std::array<VkAttachmentDescription, 2> attachments{colorAttachment, depthAttachment};
 
 		VkRenderPassCreateInfo renderPassCreateInfo{};
 		renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassCreateInfo.attachmentCount = 1;
-		renderPassCreateInfo.pAttachments = &colorAttachment;
+		renderPassCreateInfo.attachmentCount = attachments.size();
+		renderPassCreateInfo.pAttachments = attachments.data();
 		renderPassCreateInfo.subpassCount = 1;
 		renderPassCreateInfo.pSubpasses = &subpass;
-		renderPassCreateInfo.dependencyCount = 1;
-		renderPassCreateInfo.pDependencies = &dependency;
+		renderPassCreateInfo.dependencyCount = dependencies.size();
+		renderPassCreateInfo.pDependencies = dependencies.data();
 
 		if (vkCreateRenderPass(device.logical, &renderPassCreateInfo, nullptr, &renderPass) != VK_SUCCESS) {
 			std::cerr << "could not create render pass" << std::endl;
@@ -518,6 +567,7 @@ int main(int argc, char* argv[]) {
 		pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
 		pipelineCreateInfo.pDepthStencilState = nullptr;
 		pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
+		pipelineCreateInfo.pDepthStencilState = &depthStencilCreateInfo;
 
 		pipelineCreateInfo.layout = pipelineLayout;
 
@@ -541,7 +591,7 @@ int main(int argc, char* argv[]) {
 	};
 
 	std::vector<VkFramebuffer> swapchainFramebuffers{
-		createSwapchainFramebuffers(device, swapchainImageViews, swapchain, renderPass)
+		createSwapchainFramebuffers(device, swapchainImageViews, depthBuffer.view, swapchain, renderPass)
 	};
 
 
@@ -640,7 +690,7 @@ int main(int argc, char* argv[]) {
 
 					destroySwapchainImageViews(device, &swapchainImageViews, &swapchainFramebuffers);
 					swapchainImageViews = createSwapchainImageViews(device, swapchain);
-					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain, renderPass);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, depthBuffer.view, swapchain, renderPass);
 
 					continue;
 				}
@@ -657,8 +707,8 @@ int main(int argc, char* argv[]) {
 				float time{ std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count() };
 
 				UBO ubo{};
-				// ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(360.f), glm::vec3(1.f, 1.f, 1.f));
-				ubo.model = glm::mat4(1.0);
+				ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(360.f), glm::vec3(1.f, 1.f, 1.f));
+				//ubo.model = glm::mat4(1.0);
 				ubo.view = glm::lookAt(glm::vec3(2.f, 0.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
 				ubo.proj = glm::perspective(glm::radians(45.f), (float)swapchain.extent.width / swapchain.extent.height, 0.1f, 10.f);
 
@@ -675,8 +725,9 @@ int main(int argc, char* argv[]) {
 			}
 	
 			{
-				VkClearValue clearColor{};
-				clearColor.color = {{0.f, 0.f, 0.f, 1.f}};
+				std::array<VkClearValue, 2> clearColors{};
+				clearColors[0].color = {{0.f, 0.f, 0.f, 1.f}};
+				clearColors[1].depthStencil.depth = {1.f};
 	
 				VkRenderPassBeginInfo renderPassBeginInfo{};
 				renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -684,8 +735,8 @@ int main(int argc, char* argv[]) {
 				renderPassBeginInfo.framebuffer = swapchainFramebuffers[swapchainImageIndex];
 				renderPassBeginInfo.renderArea.extent = swapchain.extent;
 	
-				renderPassBeginInfo.clearValueCount = 1;
-				renderPassBeginInfo.pClearValues = &clearColor;
+				renderPassBeginInfo.clearValueCount = clearColors.size();
+				renderPassBeginInfo.pClearValues = clearColors.data();
 	
 				vkCmdBeginRenderPass(commandBuffers[frame], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 			}
@@ -765,7 +816,7 @@ int main(int argc, char* argv[]) {
 
 					destroySwapchainImageViews(device, &swapchainImageViews, &swapchainFramebuffers);
 					swapchainImageViews = createSwapchainImageViews(device, swapchain);
-					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, swapchain, renderPass);
+					swapchainFramebuffers = createSwapchainFramebuffers(device, swapchainImageViews, depthBuffer.view, swapchain, renderPass);
 
 					continue;
 				}
@@ -806,6 +857,9 @@ int main(int argc, char* argv[]) {
 
 	vkDestroyImage(device.logical, textureImage, nullptr);
 	vkFreeMemory(device.logical, textureMemory, nullptr);
+
+	vkDestroyImage(device.logical, depthBuffer.handle, nullptr);
+	vkFreeMemory(device.logical, depthBuffer.memory, nullptr);
 
 	vkDestroySampler(device.logical, textureSampler, nullptr);
 	vkDestroyImageView(device.logical, textureImageView, nullptr);

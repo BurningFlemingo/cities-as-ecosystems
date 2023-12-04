@@ -39,7 +39,7 @@ void createImage(
 	createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
 	if (vkCreateImage(device.logical, &createInfo, nullptr, outImage) != VK_SUCCESS) {
-		throw std::runtime_error("could not create texture image");
+		logFatal("could not create image");
 	}
 
 	VkMemoryRequirements memRequirements{};
@@ -51,7 +51,7 @@ void createImage(
 	memAllocInfo.memoryTypeIndex = findValidMemoryTypeIndex(device, memRequirements.memoryTypeBits, memProperties);
 
 	if (vkAllocateMemory(device.logical, &memAllocInfo, nullptr, outImageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("could not allocate memory");
+		logFatal("could not allocate memory");
 	}
 
 	vkBindImageMemory(device.logical, *outImage, *outImageMemory, 0);
@@ -203,7 +203,7 @@ void transitionImageLayout(
 	}
 }
 
-VkImageView createImageView(const Device& device, VkImage image, VkFormat format) {
+VkImageView createImageView(const Device& device, VkImage image, VkFormat format, VkImageAspectFlagBits aspect) {
 	VkImageView imageView{};
 
 	VkImageViewCreateInfo imageViewCreateInfo{};
@@ -211,7 +211,7 @@ VkImageView createImageView(const Device& device, VkImage image, VkFormat format
 	imageViewCreateInfo.image = image;
 	imageViewCreateInfo.format = format;
 	imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageViewCreateInfo.subresourceRange.aspectMask = aspect;
 	imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
 	imageViewCreateInfo.subresourceRange.levelCount = 1;
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;

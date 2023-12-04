@@ -36,6 +36,7 @@ std::vector<VkImageView> createSwapchainImageViews(
 std::vector<VkFramebuffer> createSwapchainFramebuffers(
 		const Device& device,
 		const std::vector<VkImageView>& swapchainImageViews,
+		const VkImageView& depthBuffer,
 		const Swapchain& swapchain,
 		const VkRenderPass renderPass
 	);

@@ -24,6 +24,16 @@ struct Image {
 	VkImageView view{};
 };
 
+void createImage(
+		const Device& device,
+		uint32_t width, uint32_t height,
+		VkFormat format,
+		VkImageTiling tiling,
+		VkImageUsageFlags usage,
+		VkMemoryPropertyFlags memProperties,
+		VkImage* outImage, VkDeviceMemory* outImageMemory
+	);
+
 // image must be in optimal layout
 void transitionImageLayout(
     const Device& device,
@@ -49,7 +59,7 @@ void createTextureImage(
     VkImage* textureImage, VkDeviceMemory* textureMemory
 );
 
-VkImageView createImageView(const Device& device, VkImage image, VkFormat format);
+VkImageView createImageView(const Device& device, VkImage image, VkFormat format, VkImageAspectFlagBits aspect);
 VkSampler createSampler(const Device& device);
 
 ImageInfo loadRGBAImage(const std::string& filePath);
