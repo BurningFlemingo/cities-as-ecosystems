@@ -3,6 +3,8 @@
 #include "Extensions.h"
 #include "debug/Debug.h"
 
+namespace VkUtils {
+
 Instance createInstance(SDL_Window* window) {
 	Instance instance{};
 
@@ -41,4 +43,6 @@ Instance createInstance(SDL_Window* window) {
 	instance.debugMessenger = DEBUG::createDebugMessenger(instance.handle);
 
 	return instance;
+}
+
 }

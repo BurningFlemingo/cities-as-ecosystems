@@ -2,6 +2,8 @@
 #include "debug/Debug.h"
 #include "Device.h"
 
+namespace VkUtils {
+
 VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
 VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities);
@@ -258,4 +260,6 @@ VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR ca
 	}
 
 	return windowExtent;
+}
+
 }

@@ -3,6 +3,8 @@
 #include "CommandUtils.h"
 #include "debug/Debug.h"
 
+namespace VkUtils {
+
 void createBuffer(
     const Device& device,
     VkDeviceSize size,
@@ -53,4 +55,6 @@ void copyBuffers(
 	vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, 1, &bufCopyRegion);
 
 	endTransientCommands(device, transferCmdPool, cmdBuffer, transferQueue);
+}
+
 }

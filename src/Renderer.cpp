@@ -9,3 +9,8 @@
 #include <chrono>
 #include <limits.h>
 #include <assert.h>
+
+void VulkanRenderer::createInstance(SDL_Window* window) {
+	VkUtils::Instance instance{VkUtils::createInstance(window)};
+
+}

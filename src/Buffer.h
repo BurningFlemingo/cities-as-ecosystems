@@ -2,6 +2,8 @@
 #include "pch.h"
 #include "Device.h"
 
+namespace VkUtils {
+
 void createBuffer(
     const Device& device,
     VkDeviceSize size,
@@ -20,3 +22,5 @@ void copyBuffers(
 	VkBuffer dstBuffer,
 	VkDeviceSize copyAmmount
 );
+
+}

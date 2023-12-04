@@ -2,6 +2,8 @@
 #include "debug/Debug.h"
 #include "fstream"
 
+namespace VkUtils {
+
 std::vector<char> readFile(const std::string& filename) {
 	std::ifstream file(filename, std::ios::binary | std::ios::ate);
 	if (!file) {
@@ -17,4 +19,6 @@ std::vector<char> readFile(const std::string& filename) {
 	file.close();
 
 	return buf;
+}
+
 }

@@ -12,5 +12,6 @@
 class VulkanRenderer {
 public:
 private:
+	void createInstance(SDL_Window* window);
 };
 

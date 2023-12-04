@@ -1,6 +1,8 @@
 #include "MemoryUtils.h"
 #include "debug/Debug.h"
 
+namespace VkUtils {
+
 uint32_t findValidMemoryTypeIndex(
 		const Device& device,
 		uint32_t validTypeFlags,
@@ -17,4 +19,6 @@ uint32_t findValidMemoryTypeIndex(
 
 	logWarning("could not find valid memory type");
 	return 0;
+}
+
 }

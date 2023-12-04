@@ -7,6 +7,8 @@
 #include <iostream>
 #include <optional>
 
+namespace VkUtils {
+
 struct PhysicalDeviceInfo {
 	VkPhysicalDevice handle;
 
@@ -274,4 +276,6 @@ Device createDevice(const Instance& instance, VkSurfaceKHR surface) {
 	device.memProperties = memProps;
 
 	return device;
+}
+
 }

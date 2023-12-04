@@ -9,6 +9,7 @@
 #include <iostream>
 #include <algorithm>
 
+using namespace VkUtils;
 
 namespace DEBUG {
 

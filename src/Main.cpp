@@ -18,6 +18,8 @@
 #include <chrono>
 #include <limits.h>
 
+using namespace VkUtils;
+
 struct Vertex {
 	glm::vec3 pos;
 	glm::vec3 col;
@@ -40,9 +42,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	SDL_Window* window{SDL_CreateWindow("vulkan :D", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE)};
-	if (!window) {
-		std::cerr << "window could not be created: " << SDL_GetError() << std::endl;
-	}
+	assertFatal(window, "window could not be created: ", SDL_GetError());
 
 	Instance instance{createInstance(window)};
 

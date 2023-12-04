@@ -6,6 +6,8 @@
 #include "Device.h"
 #include "Buffer.h"
 
+namespace VkUtils {
+
 struct ImageInfo {
 	int width{};
 	int height{};
@@ -62,3 +64,5 @@ void copyBufferToImage(
 		uint32_t width,
 		uint32_t height
 	);
+
+}

@@ -1,6 +1,8 @@
 #include "CommandUtils.h"
 #include "debug/Debug.h"
 
+namespace VkUtils {
+
 VkCommandBuffer beginTransientCommands(const Device& device, VkCommandPool commandPool) {
 	VkCommandBuffer commandBuffer;
 	{
@@ -37,4 +39,6 @@ void endTransientCommands(const Device& device, VkCommandPool pool, VkCommandBuf
 	vkQueueWaitIdle(queue);
 
 	vkFreeCommandBuffers(device.logical, pool, 1, &cmdBuffer);
+}
+
 }

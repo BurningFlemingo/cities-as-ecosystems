@@ -6,6 +6,7 @@
 #include <sstream>
 #include <assert.h>
 
+namespace VkUtils {
 
  std::vector<const char*> findExtensions(
 		 const std::vector<VkExtensionProperties>& avaliableExtensionProperties,
@@ -74,4 +75,6 @@ std::vector<const char*> findExtensions(
 	assertInfo(err.str().size() == 0, "could not find all instance extensions: ", err.str());
 
 	return foundExtensions;
+}
+
 }

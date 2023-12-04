@@ -3,6 +3,8 @@
 #include "pch.h"
 #include "Instance.h"
 
+namespace VkUtils {
+
 enum class QueueFamily : uint32_t {
 	graphics, 
 	presentation, 
@@ -44,3 +46,7 @@ Device createDevice(const Instance& instance, VkSurfaceKHR surface);
 SurfaceSupportDetails queryDeviceSurfaceSupportDetails(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 QueueInfo queryDeviceQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 QueueFamilyIndices selectDeviceQueueFamilyIndices(const QueueInfo& queueFamilyIndices);
+
+}
+
+

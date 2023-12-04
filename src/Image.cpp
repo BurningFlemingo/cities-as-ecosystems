@@ -8,6 +8,8 @@
 
 #include "FileIO.h"
 
+namespace VkUtils {
+
 void createImage(
 		const Device& device,
 		uint32_t width, uint32_t height,
@@ -348,4 +350,6 @@ void createTextureImage(
 
 	vkDestroyBuffer(device.logical, stagingBuffer, nullptr);
 	vkFreeMemory(device.logical, stagingBufferMemory, nullptr);
+}
+
 }

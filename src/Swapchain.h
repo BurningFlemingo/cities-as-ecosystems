@@ -4,6 +4,8 @@
 
 #include "Device.h"
 
+namespace VkUtils {
+
 struct Swapchain {
 	VkSwapchainKHR handle;
 
@@ -46,3 +48,5 @@ void destroySwapchain(
 		std::vector<VkImageView>* imageViews,
 		std::vector<VkFramebuffer>* framebuffers
 	);
+
+}
