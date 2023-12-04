@@ -2,7 +2,7 @@
 #include "debug/Debug.h"
 #include "Device.h"
 
-VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats);
+VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 VkPresentModeKHR chooseSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
 VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR capabilities);
 
@@ -60,7 +60,7 @@ Swapchain createSwapchain(
 	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
 	if (vkCreateSwapchainKHR(device.logical, &swapchainCreateInfo, nullptr, &swapchain.handle) != VK_SUCCESS) {
-		throw std::runtime_error("could not create swapchain");
+		logFatal("could not create swapchain");
 	}
 
 	swapchain.presentMode = swapchainInfo.presentMode;
@@ -99,7 +99,7 @@ Swapchain recreateSwapchain(
 	swapchainCreateInfo.oldSwapchain = oldSwapchainHandle;
 
 	if (vkCreateSwapchainKHR(device.logical, &swapchainCreateInfo, nullptr, &swapchain.handle) != VK_SUCCESS) {
-		throw std::runtime_error("could not create swapchain");
+		logFatal("could not recreate swapchain");
 	}
 
 	swapchain.presentMode = swapchainInfo.presentMode;
@@ -140,7 +140,9 @@ std::vector<VkImageView> createSwapchainImageViews(
 		imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
 		VkImageView imageView{};
-		vkCreateImageView(device.logical, &imageViewCreateInfo, nullptr, &imageView);
+		if (vkCreateImageView(device.logical, &imageViewCreateInfo, nullptr, &imageView) != VK_SUCCESS) {
+			logFatal("could not create swapchain image view");
+		}
 		swapchainImageViews.emplace_back(imageView);
 	}
 
@@ -167,7 +169,7 @@ std::vector<VkFramebuffer> createSwapchainFramebuffers(
 		framebufferCreateInfo.layers = 1;
 
 		if (vkCreateFramebuffer(device.logical, &framebufferCreateInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS) {
-			logFatal("could not create framebuffer");
+			logFatal("could not create swapchain framebuffer");
 		}
 	}
 
@@ -177,7 +179,6 @@ std::vector<VkFramebuffer> createSwapchainFramebuffers(
 void destroySwapchainFramebuffers(const Device& device, std::vector<VkFramebuffer>* framebuffers) {
 	for (auto framebuffer : *framebuffers) {
 		vkDestroyFramebuffer(device.logical, framebuffer, nullptr);
-		framebuffer = {};
 	}
 	framebuffers->clear();
 }
@@ -203,11 +204,11 @@ void destroySwapchain(const Device& device, VkSwapchainKHR swapchainHandle, std:
 	vkDestroySwapchainKHR(device.logical, swapchainHandle, nullptr);
 }
 
-VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& avaliableFormats) {
+VkSurfaceFormatKHR chooseSwapchainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
 	VkSurfaceFormatKHR bestFormat{};
 	int bestFormatRating{-1};
 
-	for (const auto& format : avaliableFormats) {
+	for (const auto& format : availableFormats) {
 		int thisFormatRating{};
 		if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 			thisFormatRating += 10;
@@ -258,5 +259,3 @@ VkExtent2D chooseSwapchainExtent(SDL_Window* window, VkSurfaceCapabilitiesKHR ca
 
 	return windowExtent;
 }
-
-

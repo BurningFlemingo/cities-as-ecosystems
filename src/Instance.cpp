@@ -35,7 +35,7 @@ Instance createInstance(SDL_Window* window) {
 	createInfo.pNext = &debugCreateInfo;
 
 	if(vkCreateInstance(&createInfo, nullptr, &instance.handle)) {
-		throw std::runtime_error("could not create instance");
+		logFatal("could not create instance");
 	}
 
 	instance.debugMessenger = DEBUG::createDebugMessenger(instance.handle);

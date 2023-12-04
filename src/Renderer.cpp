@@ -2,8 +2,6 @@
 
 #include <iostream>
 
-#include <stb/stb_image.h>
-
 #include "debug/Debug.h"
 
 #include <optional>

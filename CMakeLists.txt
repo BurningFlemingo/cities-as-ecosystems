@@ -46,6 +46,11 @@ set(SRC_FILES
 	${SRC_DIR}/Extensions.cpp
 	${SRC_DIR}/Device.cpp
 	${SRC_DIR}/Instance.cpp
+	${SRC_DIR}/CommandUtils.cpp
+	${SRC_DIR}/MemoryUtils.cpp
+	${SRC_DIR}/Buffer.cpp
+	${SRC_DIR}/Image.cpp
+	${SRC_DIR}/FileIO.cpp
 	${SRC_DIR}/debug/vulkan/ValidationLayers.cpp
 )
 
