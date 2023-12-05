@@ -1,3 +1,4 @@
+#define GLM_ENABLE_EXPERIMENTAL
 #include "pch.h"
 
 #include <iostream>
@@ -13,10 +14,14 @@
 #include "Buffer.h"
 #include "FileIO.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader/tiny_obj_loader.h"
+
 #include <optional>
 #include <fstream>
 #include <chrono>
 #include <limits.h>
+#include <functional>
 
 using namespace VkUtils;
 
@@ -24,10 +29,22 @@ struct Vertex {
 	glm::vec3 pos;
 	glm::vec3 col;
 	glm::vec2 texCoord;
+
+	bool operator==(const Vertex& v) const {
+		return v.pos == pos && v.col == col && v.texCoord == texCoord;
+	}
+};
+
+template <>
+struct std::hash<Vertex> {
+	size_t operator()(const Vertex& vertex) const {
+		return (std::hash<glm::vec3>()(vertex.pos)) ^
+		((std::hash<glm::vec2>()(vertex.texCoord) << 1) >> 1) ^
+		(std::hash<glm::vec3>()(vertex.col) << 1);
+	}
 };
 
 struct UBO {
-	glm::vec2 omo;
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
@@ -128,22 +145,82 @@ int main(int argc, char* argv[]) {
 		pipelineStages[1] = fragShaderStageCreateInfo;
 	}
 
-	std::vector<Vertex> vertices = {
-		{{-0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-		{{0.5f, 0.5f, 0.f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
-		{{-0.5f, -0.5f, 0.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, 
-		{{0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
+	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+	{
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> mats;
 
-		{{-0.5f, 0.5f, -0.2f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-		{{0.5f, 0.5f, -0.2f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
-		{{-0.5f, -0.5f, -0.2f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, 
-		{{0.5f, -0.5f, -0.2f}, {0.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-	};
+		std::string warn, err;
+		std::string filename{"assets/models/vikingRoom.obj"};
+		tinyobj::attrib_t attrib{};
 
-	std::vector<uint16_t> indices = {
-		0, 1, 2, 1, 3, 2,
-		4, 5, 6, 5, 7, 6
-	};
+		if(!tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, filename.c_str())) {
+			logWarning("could not load model");
+		}
+
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+				Vertex vertex{};
+
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2],
+					attrib.vertices[3 * index.vertex_index + 0], 
+				};
+				vertex.texCoord = {
+					attrib.texcoords[2 * index.texcoord_index + 0], 
+					attrib.texcoords[2 * index.texcoord_index + 1],
+				};
+				vertex.col = {0.f, 0.f, 0.f};
+
+				if (uniqueVertices.count(vertex) == 0) {
+					uniqueVertices[vertex] = vertices.size();
+					vertices.emplace_back(vertex);
+				}
+
+				indices.emplace_back(uniqueVertices[vertex]);
+			}
+		}
+	}
+
+	VkBuffer vertexBuffer{};
+	VkDeviceMemory vertexBufferMemory{};
+	{
+		VkDeviceMemory stagingBufferMemory{};
+		VkBuffer stagingBuffer{};
+
+		VkDeviceSize bufferSize{sizeof(Vertex) * vertices.size()};
+
+		createBuffer(
+				device,
+				bufferSize,
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				VK_SHARING_MODE_EXCLUSIVE,
+				&stagingBuffer, &stagingBufferMemory
+			);
+
+		void* data;
+		vkMapMemory(device.logical, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, vertices.data(), bufferSize);
+		vkUnmapMemory(device.logical, stagingBufferMemory);
+
+		createBuffer(
+				device,
+				bufferSize,
+				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				VK_SHARING_MODE_EXCLUSIVE,
+				&vertexBuffer, &vertexBufferMemory
+			);
+
+		copyBuffers(device, transferPool, transferQueue, stagingBuffer, vertexBuffer, bufferSize);
+		
+		vkDestroyBuffer(device.logical, stagingBuffer, nullptr);
+		vkFreeMemory(device.logical, stagingBufferMemory, nullptr);
+	}
 
 	VkVertexInputBindingDescription vertexBindingDescription{};
 	std::array<VkVertexInputAttributeDescription, 3> vertexAttributeDescriptions{};
@@ -182,42 +259,6 @@ int main(int argc, char* argv[]) {
 
 	depthBuffer.view = createImageView(device, depthBuffer.handle, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-	VkBuffer vertexBuffer{};
-	VkDeviceMemory vertexBufferMemory{};
-	{
-		VkDeviceMemory stagingBufferMemory{};
-		VkBuffer stagingBuffer{};
-
-		VkDeviceSize bufferSize{sizeof(vertices[0]) * vertices.size()};
-
-		createBuffer(
-				device,
-				bufferSize,
-				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-				VK_SHARING_MODE_EXCLUSIVE,
-				&stagingBuffer, &stagingBufferMemory
-			);
-
-		void* data;
-		vkMapMemory(device.logical, stagingBufferMemory, 0, bufferSize, 0, &data);
-		memcpy(data, vertices.data(), bufferSize);
-		vkUnmapMemory(device.logical, stagingBufferMemory);
-
-		createBuffer(
-				device,
-				bufferSize,
-				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-				VK_SHARING_MODE_EXCLUSIVE,
-				&vertexBuffer, &vertexBufferMemory
-			);
-
-		copyBuffers(device, transferPool, transferQueue, stagingBuffer, vertexBuffer, bufferSize);
-		
-		vkDestroyBuffer(device.logical, stagingBuffer, nullptr);
-		vkFreeMemory(device.logical, stagingBufferMemory, nullptr);
-	}
 
 	VkBuffer indexBuffer{};
 	VkDeviceMemory indexBufferMemory{};
@@ -276,7 +317,7 @@ int main(int argc, char* argv[]) {
 			commandPool,
 			transferQueue,
 			graphicsQueue,
-			"./assets/duck.png",
+			"./assets/textures/vikingRoom.png",
 			&textureImage, 
 			&textureMemory
 		);
@@ -440,7 +481,7 @@ int main(int argc, char* argv[]) {
 		rasterizerCreationInfo.lineWidth = 1.0;
 
 		rasterizerCreationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-		rasterizerCreationInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+		rasterizerCreationInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
 		rasterizerCreationInfo.depthBiasEnable = VK_FALSE;
 
@@ -707,10 +748,10 @@ int main(int argc, char* argv[]) {
 				float time{ std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count() };
 
 				UBO ubo{};
-				ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(360.f), glm::vec3(1.f, 1.f, 1.f));
-				//ubo.model = glm::mat4(1.0);
-				ubo.view = glm::lookAt(glm::vec3(2.f, 0.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-				ubo.proj = glm::perspective(glm::radians(45.f), (float)swapchain.extent.width / swapchain.extent.height, 0.1f, 10.f);
+				// ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(360.f), glm::vec3(1.f, 1.f, 1.f));
+				ubo.model = glm::mat4(1.0);
+				ubo.view = glm::lookAt(glm::vec3(cos(time) * 2.f, 0.f, sin(time) * 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+				ubo.proj = glm::perspective(glm::radians(45.f), (float)swapchain.extent.width / swapchain.extent.height, 0.1f, 100.f);
 
 				memcpy(uboMappedMem[frame], &ubo, sizeof(ubo));
 			}
@@ -747,7 +788,7 @@ int main(int argc, char* argv[]) {
 				VkDeviceSize offsets[] = {0};
 
 				vkCmdBindVertexBuffers(commandBuffers[frame], 0, 1, vertexBuffers, offsets);
-				vkCmdBindIndexBuffer(commandBuffers[frame], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+				vkCmdBindIndexBuffer(commandBuffers[frame], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 	
 				VkViewport viewport{};
 
@@ -775,9 +816,9 @@ int main(int argc, char* argv[]) {
 			}
 
 			{
-				VkSemaphore waitSemaphores[] = {imageAvaliableSemaphores[frame]};
 				VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[frame]};
-				VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+				VkSemaphore waitSemaphores[] = {imageAvaliableSemaphores[frame]};
+				VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT};
 
 				VkSubmitInfo submitInfo{};
 				submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -859,6 +900,7 @@ int main(int argc, char* argv[]) {
 	vkFreeMemory(device.logical, textureMemory, nullptr);
 
 	vkDestroyImage(device.logical, depthBuffer.handle, nullptr);
+	vkDestroyImageView(device.logical, depthBuffer.view, nullptr);
 	vkFreeMemory(device.logical, depthBuffer.memory, nullptr);
 
 	vkDestroySampler(device.logical, textureSampler, nullptr);
