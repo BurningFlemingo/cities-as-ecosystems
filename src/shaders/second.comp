@@ -1,0 +1,28 @@
+#version 460
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout(rgba16f, set = 0, binding = 0) uniform image2D screen;
+
+layout (push_constant) uniform constants {
+	vec4 d1;
+	vec4 d2;
+	vec4 d3;
+	vec4 d4;
+} pushConstants;
+
+void main() {
+	ivec2 tx = ivec2(gl_GlobalInvocationID.xy);
+
+	ivec2 size = imageSize(screen);
+
+	vec4 topColor = pushConstants.d1;
+	vec4 bottomColor = pushConstants.d2;
+
+	if (tx.x < size.x && tx.y < size.y) {
+		float gradientWeight = float(tx.y) / size.y;
+
+		vec4 color = mix(topColor, bottomColor, gradientWeight);
+		imageStore(screen, tx, color);
+	}
+}

@@ -29,7 +29,6 @@ if __name__ == "__main__":
     preset: str = sys.argv[1]
     buildDir = buildPath(rootDir, "build", preset)
 
-
     os.makedirs(buildPath(buildDir, "shaders"), exist_ok=True)
 
     cmakeCommand = f"cmake --preset {preset} -S {rootDir}"

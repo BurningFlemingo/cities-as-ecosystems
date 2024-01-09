@@ -1,15 +1,15 @@
-#include "debug/vulkan/ValidationLayers.h"
+#include "ValidationLayers.h"
 
 #ifdef DEBUG_VALIDATION_LAYERS
 
-#include "Extensions.h"
+#include "debug/Logging.h"
+
+#include "vulkanRenderer/Extensions.h"
 
 #include <vulkan/vulkan.h>
 #include <sstream>
-#include <iostream>
 #include <algorithm>
 
-using namespace VkUtils;
 
 namespace DEBUG {
 
@@ -95,7 +95,7 @@ VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance) {
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{getDebugMessengerCreateInfo()};
 
 	if(createDebugUtilsMessenger(instance, &debugCreateInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-		throw std::runtime_error("could not create debug messenger");
+		logWarning("could not create debug messenger");
 	}
 
 	return debugMessenger;
@@ -130,7 +130,7 @@ std::vector<const char*> findLayers(
 		}
 	}
 	if (err.str().size() > 0) {
-		throw std::runtime_error(err.str());
+		logWarning("could not find layers: ", err.str());
 	}
 
 	return foundLayers;

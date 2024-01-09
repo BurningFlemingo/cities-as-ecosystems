@@ -1,7 +1,18 @@
 {
   "dependencies": [
-	  { "name": "sdl2", "features": [ "vulkan" ] },
+	 { 
+		 "name": "sdl2",
+		 "features": [ "vulkan" ]
+	 },
     "vulkan",
-	"glm"
+	"spirv-reflect",
+	"glm",
+	"vulkan-memory-allocator", 
+	"stb",
+	"tinyobjloader",
+	{
+		"name": "imgui",
+		"features": [ "vulkan-binding", "sdl2-binding" ]
+	}
   ]
 }

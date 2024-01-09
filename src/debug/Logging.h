@@ -1,9 +1,10 @@
 #pragma once
 
-#include <pch.h>
 #include <iostream>
 #include <initializer_list>
 #include <string>
+
+#define LOCATION_STRING_ARGS  "::", __FILE__, "::", __LINE__
 
 namespace LOGGING {
 
@@ -32,23 +33,26 @@ namespace LOGGING {
 
 		log(args...);
 
-		if (severity == SEVERITY::FATAL) {
-			std::cout << "::" << __FILE__ << "::" << __LINE__ << std::endl;
-			std::abort();
-		}
 		std::cout << std::endl;
+	}
+
+	template <typename... Args>
+	void severityLog(SEVERITY severity) {
+		std::string severityStrings[3]{"INFO", "WARNING", "FATAL"};
+
+		std::cout << "\t" << severityStrings[(uint32_t)severity] << "::" << std::endl;
 	}
 }
 
 
 template <typename ...Args>
-void logFatal(Args... args) {
+inline void logFatal(Args... args) {
 	LOGGING::severityLog(LOGGING::SEVERITY::FATAL, args...);
 }
 
 #ifdef ENABLE_WARNINGS
 	template <typename ...Args>
-	void logWarning(Args... args) {
+	inline void logWarning(Args... args) {
 		LOGGING::severityLog(LOGGING::SEVERITY::WARNING, args...);
 	}
 #else
@@ -58,7 +62,7 @@ void logFatal(Args... args) {
 
 #ifdef ENABLE_INFO
 	template <typename ...Args>
-	void logInfo(Args... args) {
+	inline void logInfo(Args... args) {
 		LOGGING::severityLog(LOGGING::SEVERITY::INFO, args...);
 	}
 #else

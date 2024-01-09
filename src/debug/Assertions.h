@@ -3,14 +3,14 @@
 #include "debug/Logging.h"
 #include <string>
 
-	template <typename ...Args>
-	void assertFatal(bool condition, Args... args) {
-		if (!condition) {
-			LOGGING::log("\tFATAL::ASSERTION_FAILURE::", args..., "::",  __FILE__, "::", __LINE__); \
-				std::abort();
-			std::cout << std::endl;
-		}
+template <typename ...Args>
+void assertFatal(bool condition, Args... args) {
+	if (!condition) {
+		LOGGING::log("\tFATAL::ASSERTION_FAILURE::", args..., "::",  __FILE__, "::", __LINE__); \
+			std::abort();
+		std::cout << std::endl;
 	}
+}
 
 #ifdef ENABLE_WARNINGS
 	template <typename ...Args>
@@ -21,7 +21,7 @@
 		}
 	}
 #else 
-#define ASSERT_WARNING(condition, ...) 
+#define ASSERT_WARNING(condition, ...) {condition}
 #endif
 
 #ifdef ENABLE_INFO
@@ -34,5 +34,5 @@
 	}
 #else
 	template <typename ...Args>
-	void assertInfo(bool condition, Args... args) {}
+	void assertInfo(bool condition, Args... args) {condition}
 #endif
